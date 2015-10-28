@@ -10,23 +10,23 @@ import java.util.List;
 /**
  * Created by nick on 10/15/15.
  */
-public class GTFSAgencyProcessor extends GTFSProcessor {
+public class GTFSProcessorAgency extends GTFSProcessor {
     public enum AgencyIdStatus {
         Unknown, Present, NotPresent
     }
     private final static int INITIAL_CAPACITY = 32;
     private final static String FILE_NAME = "agency.txt";
-    public static GTFSAgencyProcessor instance;
+    public static GTFSProcessorAgency instance;
 
     public ArrayList<GTFSObjectAgency> agencies;
     private HashMap<String, GTFSObjectAgency> agencyLookup;
     public AgencyIdStatus agencyIdStatus = AgencyIdStatus.Unknown;
 
-    public static GTFSAgencyProcessor initInstance() throws IOException {
-        instance = new GTFSAgencyProcessor();
+    public static GTFSProcessorAgency initInstance() throws IOException {
+        instance = new GTFSProcessorAgency();
         return instance;
     }
-    public GTFSAgencyProcessor() throws IOException {
+    public GTFSProcessorAgency() throws IOException {
         gtfsColumnIndices = new HashMap<>();
 
         fp = new File(basePath + FILE_NAME);

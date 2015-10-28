@@ -15,7 +15,7 @@ import java.util.regex.Pattern;
 /**
  * Created by nick on 10/15/15.
  */
-public class GTFSStopsProcessor extends GTFSProcessor {
+public class GTFSProcessorStops extends GTFSProcessor {
     private final static int INITIAL_STOP_CAPACITY = 8192;
     private final static String FILE_NAME = "stops.txt";
 
@@ -24,7 +24,7 @@ public class GTFSStopsProcessor extends GTFSProcessor {
     private final static String BAY_REGEX = "[ :-]* bay ([\\S\\d]+)";
     private Pattern bayPattern = Pattern.compile(BAY_REGEX, Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE | Pattern.UNICODE_CHARACTER_CLASS);
 
-    public GTFSStopsProcessor() throws IOException {
+    public GTFSProcessorStops() throws IOException {
 
         fp = new File(basePath + FILE_NAME);
         if(!fp.exists()) {

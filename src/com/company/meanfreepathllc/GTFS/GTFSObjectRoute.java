@@ -2,7 +2,6 @@ package com.company.meanfreepathllc.GTFS;
 
 import com.sun.javaws.exceptions.InvalidArgumentException;
 
-import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -62,6 +61,6 @@ public class GTFSObjectRoute extends GTFSObject {
 
         //now add any processed values
         routeType = Integer.parseInt(fields.get(FIELD_ROUTE_TYPE));
-        agency = GTFSAgencyProcessor.instance.lookupAgencyById(fields.get(FIELD_AGENCY_ID));
+        agency = GTFSProcessorAgency.instance.lookupAgencyById(fields.get(FIELD_AGENCY_ID));
     }
 }

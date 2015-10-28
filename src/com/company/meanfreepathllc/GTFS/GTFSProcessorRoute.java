@@ -12,13 +12,13 @@ import java.util.List;
 /**
  * Created by nick on 10/16/15.
  */
-public class GTFSRouteProcessor extends GTFSProcessor {
+public class GTFSProcessorRoute extends GTFSProcessor {
     private final static int INITIAL_ROUTE_CAPACITY = 256;
     private final static String FILE_NAME = "routes.txt";
 
     private final ArrayList<OSMRouteMaster> routes;
 
-    public GTFSRouteProcessor() throws IOException, FileNotFoundException {
+    public GTFSProcessorRoute() throws IOException, FileNotFoundException {
         super();
         gtfsColumnIndices = new HashMap<>(GTFSObjectRoute.requiredFields.length);
 
