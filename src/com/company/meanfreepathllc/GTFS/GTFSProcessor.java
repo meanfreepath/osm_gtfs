@@ -1,5 +1,7 @@
 package com.company.meanfreepathllc.GTFS;
 
+import com.sun.javaws.exceptions.InvalidArgumentException;
+
 import java.io.File;
 import java.io.IOException;
 import java.io.Reader;
@@ -15,7 +17,6 @@ public abstract class GTFSProcessor {
     protected static String basePath;
     protected File fp;
 
-    protected HashMap<String, Runnable> gtfsFieldHandlers;
     protected HashMap<Short, String> gtfsColumnIndices;
 
     public static String getBasePath() {
@@ -37,6 +38,7 @@ public abstract class GTFSProcessor {
         public LogEvent(LogLevel level, String msg) {
             eventLevel = level;
             message = msg;
+            System.out.println(eventLevel + ": " + message);
         }
     }
 
@@ -45,7 +47,24 @@ public abstract class GTFSProcessor {
         eventLog.add(event);
     }
 
-    protected abstract void initGTFSColumnHandler();
+    public GTFSProcessor() {
+
+    }
+
+    protected void processFileHeader(List<String> headerVals) {
+        short colIdx = 0;
+        for (final String colVal: headerVals) {
+            gtfsColumnIndices.put(colIdx++, colVal);
+        }
+    }
+    protected void processLine(List<String> lineVals, GTFSObject dataObject) throws InvalidArgumentException {
+        short colIdx = 0;
+        for (final String colVal : lineVals) {
+            dataObject.setField(gtfsColumnIndices.get(colIdx++), colVal);
+        }
+
+        dataObject.postProcess();
+    }
 
     /**
      * Copied from https://agiletribe.wordpress.com/2012/11/23/the-only-class-you-need-for-csv-files/

@@ -1,6 +1,8 @@
 package com.company.meanfreepathllc.GTFS;
 
+import com.company.meanfreepathllc.GTFS.GTFSObjectRoute.GTFSRouteType;
 import com.company.meanfreepathllc.OSM.*;
+import com.sun.javaws.exceptions.InvalidArgumentException;
 
 import java.io.*;
 import java.util.ArrayList;
@@ -14,147 +16,104 @@ public class GTFSRouteProcessor extends GTFSProcessor {
     private final static int INITIAL_ROUTE_CAPACITY = 256;
     private final static String FILE_NAME = "routes.txt";
 
-    private static HashMap<String,Runnable> gtfsColumns2;
-    private final static String[] GTFS_COLUMNS = {"agency_id", "route_id", "route_short_name", "route_long_name", "route_type", "route_desc", "route_url"};
-    private final ArrayList<OSMRoute> routes;
+    private final ArrayList<OSMRouteMaster> routes;
 
-    private String curGTFSColumnValue;
-    private OSMRoute curRoute;
-
-    private class ColumnHandler implements Runnable {
-        public final String colName;
-
-        public ColumnHandler(String col) {
-            colName = col;
-        }
-
-        @Override
-        public void run() {
-            switch (colName) {
-                //case GTFS_COLUMNS[0]
-            }
-        }
-    }
     public GTFSRouteProcessor() throws IOException, FileNotFoundException {
-        gtfsColumnIndices = new HashMap<>(GTFS_COLUMNS.length);
-        initGTFSColumnHandler();
+        super();
+        gtfsColumnIndices = new HashMap<>(GTFSObjectRoute.requiredFields.length);
 
         fp = new File(basePath + FILE_NAME);
         if(!fp.exists()) {
             throw new FileNotFoundException("No routes.txt file found in directory!");
         }
 
-        routes = new ArrayList<OSMRoute>(INITIAL_ROUTE_CAPACITY);
+        routes = new ArrayList<>(INITIAL_ROUTE_CAPACITY);
         List<String> explodedLine;
-        //OSMRoute curRoute; //TODO base route class on operator
+        OSMRouteMaster curRoute; //TODO base route class on operator
         int lineNumber = 0;
         short colIdx;
+        GTFSObjectRoute routeData;
 
-        FileInputStream fStream = new FileInputStream(fp.getAbsoluteFile());
-        BufferedReader in = new BufferedReader(new InputStreamReader(fStream));
+        final FileInputStream fStream = new FileInputStream(fp.getAbsoluteFile());
+        final BufferedReader in = new BufferedReader(new InputStreamReader(fStream));
         while (in.ready()) {
             explodedLine = parseLine(in);
             if(explodedLine == null) { //i.e. blank line
                 continue;
             }
-            if(lineNumber++ == 0) { //header line
-                colIdx = 0;
-                for (final String colVal: explodedLine) {
-                    gtfsColumnIndices.put(new Short(colIdx++), colVal);
-                }
+            if(lineNumber++ == 0) { //header line: map the fields to a column index
+                processFileHeader(explodedLine);
                 continue;
             }
-            curRoute = OSMRouteBus.create();
 
-            colIdx = 0;
-            for (final String colVal : explodedLine) {
-                curGTFSColumnValue = colVal;
-                gtfsFieldHandlers.get(gtfsColumnIndices.get(colIdx++)).run();
+            //compile the route data object's fields from the line's data
+            routeData = new GTFSObjectRoute();
+            try {
+                processLine(explodedLine, routeData);
+            } catch (InvalidArgumentException e) {
+                logEvent(LogLevel.warn, e.getLocalizedMessage());
+                continue;
+            }
+
+            //now copy the GTFS route data as an OSM route_master relation
+            curRoute = OSMRouteMaster.create();
+
+            //agency_id
+            if(routeData.agency == null) {
+                logEvent(LogLevel.error, "No agency defined for agency_id \"" + routeData.getField(GTFSObjectRoute.FIELD_AGENCY_ID) + "\" - this is an error with the GTFS dataset.");
+                return;
+            }
+            curRoute.setTag(OSMEntity.KEY_OPERATOR, routeData.agency.getField(GTFSObjectAgency.FIELD_AGENCY_NAME));
+
+            //route_id
+            curRoute.setTag("kcm:id", routeData.getField(GTFSObjectRoute.FIELD_ROUTE_SHORT_NAME));
+
+            //route_short_name
+            curRoute.setTag(OSMEntity.KEY_REF, routeData.getField(GTFSObjectRoute.FIELD_ROUTE_SHORT_NAME));
+
+            //route_long_name
+            String routeLongName = routeData.getField(GTFSObjectRoute.FIELD_ROUTE_LONG_NAME);
+            if(routeLongName != null && !routeLongName.isEmpty()) {
+                curRoute.setTag(OSMEntity.KEY_NAME, routeLongName);
+            } else {
+                String ref = curRoute.getTag(OSMEntity.KEY_REF);
+                if(ref == null) {
+                    curRoute.setTag(OSMEntity.KEY_NAME, "UNKNOWN ROUTE NUMBER");
+                } else {
+                    curRoute.setTag(OSMEntity.KEY_NAME, "Route " + ref);
+                }
+            }
+
+            //route_desc
+            processRouteDesc(routeData.getField(GTFSObjectRoute.FIELD_ROUTE_DESC), curRoute);
+
+            //route_type
+            switch(routeData.routeType) {
+                case 3:
+                    curRoute.setTag(OSMEntity.KEY_ROUTE, OSMEntity.TAG_BUS);
+                    break;
             }
             routes.add(curRoute);
+
+            //route_url
+            String routeUrl = routeData.getField(GTFSObjectRoute.FIELD_ROUTE_URL);
+            if(routeUrl != null && !routeUrl.isEmpty()) {
+                curRoute.setTag(OSMEntity.KEY_WEBSITE, routeUrl);
+            }
+
+            //route_color
+            String routeColor = routeData.getField(GTFSObjectRoute.FIELD_ROUTE_COLOR);
+            if(routeColor != null && !routeColor.isEmpty()) {
+                curRoute.setTag(OSMEntity.KEY_COLOUR, routeColor);
+            }
+
+            //route_text_color
+            //(unused)
         }
         in.close();
         fStream.close();
     }
-    protected void initGTFSColumnHandler() {
-        gtfsFieldHandlers = new HashMap<String,Runnable>(GTFS_COLUMNS.length);
-        gtfsFieldHandlers.put("agency_id", new Runnable() {
-            @Override
-            public void run() {
-                processAgencyId(curGTFSColumnValue, curRoute);
-            }
-        });
-        gtfsFieldHandlers.put("route_id", new Runnable() {
-            @Override
-            public void run() {
-                processRouteId(curGTFSColumnValue, curRoute);
-            }
-        });
-        gtfsFieldHandlers.put("route_short_name", new Runnable() {
-            @Override
-            public void run() {
-                processRouteShortName(curGTFSColumnValue, curRoute);
-            }
-        });
-        gtfsFieldHandlers.put("route_long_name", new Runnable() {
-            @Override
-            public void run() {
-                processRouteLongName(curGTFSColumnValue, curRoute);
-            }
-        });
-        gtfsFieldHandlers.put("route_type", new Runnable() {
-            @Override
-            public void run() {
-                processRouteType(curGTFSColumnValue, curRoute);
-            }
-        });
-        gtfsFieldHandlers.put("route_desc", new Runnable() {
-            @Override
-            public void run() {
-                processRouteDesc(curGTFSColumnValue, curRoute);
-            }
-        });
-        gtfsFieldHandlers.put("route_url", new Runnable() {
-            @Override
-            public void run() {
-                processRouteUrl(curGTFSColumnValue, curRoute);
-            }
-        });
-    }
-    private void processAgencyId(String value, OSMRoute route) {
-        GTFSAgencyProcessor.GTFSAgency routeAgency = GTFSAgencyProcessor.instance.agencyLookup.get(value);
-        if(routeAgency == null) {
-            logEvent(LogLevel.error, "No agency defined for agency_id \"" + value + "\" - this is an error with the GTFS dataset.");
-            return;
-        }
-        route.setTag(OSMEntity.KEY_OPERATOR, routeAgency.name);
-    }
-    private void processRouteId(String value, OSMRoute route) {
-        route.setTag(OSMEntity.KEY_REF, value);
-    }
-    private void processRouteShortName(String value, OSMRoute route) {
-        if(value == null) {
-            logEvent(LogLevel.warn, "No route_short_name present");
-        } else {
-            route.setTag(OSMEntity.KEY_REF, value);
-        }
-    }
-    private void processRouteLongName(String value, OSMRoute route) {
-        if(value != null && !value.isEmpty()) {
-            route.setTag(OSMEntity.KEY_NAME, value);
-        } else {
-            String ref = route.getTag(OSMEntity.KEY_REF);
-            if(ref == null) {
-                route.setTag(OSMEntity.KEY_NAME, "UNKNOWN ROUTE NUMBER");
-            } else {
-                route.setTag(OSMEntity.KEY_NAME, "Route " + ref);
-            }
-        }
-    }
-    private void processRouteType(String value, OSMRoute route) {
-
-    }
-    private void processRouteDesc(String value, OSMRoute route) {
+    private void processRouteDesc(String value, OSMRouteMaster route) {
         final String[] splitters = {" to ", " - ", "/"};
         if(value == null) {
             return;
@@ -186,11 +145,8 @@ public class GTFSRouteProcessor extends GTFSProcessor {
             }
         }
     }
-    private void processRouteUrl(String value, OSMRoute route) {
-        route.setTag(OSMEntity.KEY_WEBSITE, value);
-    }
 
-    public ArrayList<OSMRoute> getRoutes() {
+    public ArrayList<OSMRouteMaster> getRoutes() {
         return routes;
     }
 
