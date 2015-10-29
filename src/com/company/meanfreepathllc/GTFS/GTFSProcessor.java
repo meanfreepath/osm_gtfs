@@ -5,6 +5,7 @@ import com.sun.javaws.exceptions.InvalidArgumentException;
 import java.io.File;
 import java.io.IOException;
 import java.io.Reader;
+import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -14,11 +15,12 @@ import java.util.Vector;
  * Created by nick on 10/15/15.
  */
 public abstract class GTFSProcessor {
+    protected static String FILE_NAME;
     protected static String basePath;
     protected File fp;
+    public List<LogEvent> eventLog = new ArrayList<LogEvent>(1024);
 
     protected HashMap<Short, String> gtfsColumnIndices;
-
     public static String getBasePath() {
         return basePath;
     }
@@ -26,24 +28,29 @@ public abstract class GTFSProcessor {
         basePath = path;
     }
 
-    public List<LogEvent> eventLog = new ArrayList<LogEvent>(1024);
-
     protected enum LogLevel {
         info, warn, error;
     }
 
+    protected String getFileName() {
+        return FILE_NAME;
+    }
+
     private class LogEvent {
-        LogLevel eventLevel;
-        String message;
-        public LogEvent(LogLevel level, String msg) {
+        final LogLevel eventLevel;
+        final String message, fileName;
+        final int lineNumber;
+        public LogEvent(LogLevel level, String msg, String file, int line) {
             eventLevel = level;
             message = msg;
-            System.out.println(eventLevel + ": " + message);
+            fileName = file;
+            lineNumber = line;
+            System.out.println(fileName + (lineNumber > 0 ? "(line " + lineNumber + "): " : ": ") +  eventLevel + ": " + message);
         }
     }
 
-    protected void logEvent(LogLevel level, String message) {
-        LogEvent event = new LogEvent(level, message);
+    protected void logEvent(LogLevel level, String message, int line) {
+        LogEvent event = new LogEvent(level, message, getFileName(), line);
         eventLog.add(event);
     }
 
@@ -51,16 +58,35 @@ public abstract class GTFSProcessor {
 
     }
 
-    protected void processFileHeader(List<String> headerVals) {
+    protected void processFileHeader(List<String> headerVals, GTFSObject objectTemplate) {
         short colIdx = 0;
+        String[] definedFields = objectTemplate.getDefinedFields();
+
+        boolean fieldOk;
         for (final String colVal: headerVals) {
-            gtfsColumnIndices.put(colIdx++, colVal);
+            fieldOk = false;
+            for(int i=0;i<definedFields.length;i++) {
+                if(definedFields[i].equals(colVal)) {
+                    fieldOk = true;
+                    break;
+                }
+            }
+
+            if(fieldOk) {
+                gtfsColumnIndices.put(colIdx++, colVal);
+            } else {
+                logEvent(LogLevel.warn, "Ignoring values in undefined column “" + colVal + "”", 1);
+            }
         }
     }
     protected void processLine(List<String> lineVals, GTFSObject dataObject) throws InvalidArgumentException {
         short colIdx = 0;
+        String fieldName;
         for (final String colVal : lineVals) {
-            dataObject.setField(gtfsColumnIndices.get(colIdx++), colVal);
+            fieldName = gtfsColumnIndices.get(colIdx++);
+            if(fieldName != null) { //i.e. the field is defined in the spec
+                dataObject.setField(fieldName, colVal);
+            }
         }
 
         dataObject.postProcess();

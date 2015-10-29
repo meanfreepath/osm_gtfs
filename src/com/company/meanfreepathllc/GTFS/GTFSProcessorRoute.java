@@ -31,7 +31,6 @@ public class GTFSProcessorRoute extends GTFSProcessor {
         List<String> explodedLine;
         OSMRouteMaster curRoute; //TODO base route class on operator
         int lineNumber = 0;
-        short colIdx;
         GTFSObjectRoute routeData;
 
         final FileInputStream fStream = new FileInputStream(fp.getAbsoluteFile());
@@ -41,17 +40,18 @@ public class GTFSProcessorRoute extends GTFSProcessor {
             if(explodedLine == null) { //i.e. blank line
                 continue;
             }
-            if(lineNumber++ == 0) { //header line: map the fields to a column index
-                processFileHeader(explodedLine);
+
+            routeData = new GTFSObjectRoute();
+            if(lineNumber++ == 0) { //header line
+                processFileHeader(explodedLine, routeData);
                 continue;
             }
 
             //compile the route data object's fields from the line's data
-            routeData = new GTFSObjectRoute();
             try {
                 processLine(explodedLine, routeData);
             } catch (InvalidArgumentException e) {
-                logEvent(LogLevel.warn, e.getLocalizedMessage());
+                logEvent(LogLevel.warn, e.getLocalizedMessage(), lineNumber+1);
                 continue;
             }
 
@@ -60,7 +60,7 @@ public class GTFSProcessorRoute extends GTFSProcessor {
 
             //agency_id
             if(routeData.agency == null) {
-                logEvent(LogLevel.error, "No agency defined for agency_id \"" + routeData.getField(GTFSObjectRoute.FIELD_AGENCY_ID) + "\" - this is an error with the GTFS dataset.");
+                logEvent(LogLevel.error, "No agency defined for agency_id \"" + routeData.getField(GTFSObjectRoute.FIELD_AGENCY_ID) + "\" - this is an error with the GTFS dataset.", lineNumber+1);
                 return;
             }
             curRoute.setTag(OSMEntity.KEY_OPERATOR, routeData.agency.getField(GTFSObjectAgency.FIELD_AGENCY_NAME));
@@ -89,8 +89,29 @@ public class GTFSProcessorRoute extends GTFSProcessor {
 
             //route_type
             switch(routeData.routeType) {
-                case 3:
+                case tramStreetcarLightrail:
+                    curRoute.setTag(OSMEntity.KEY_ROUTE, OSMEntity.TAG_LIGHT_RAIL); //NOTE: GTFS conflates tram and light_rail types
+                    break;
+                case subwayMetro:
+                    curRoute.setTag(OSMEntity.KEY_ROUTE, OSMEntity.TAG_SUBWAY);
+                case rail:
+                    curRoute.setTag(OSMEntity.KEY_ROUTE, OSMEntity.TAG_TRAIN);
+                    break;
+                case bus:
                     curRoute.setTag(OSMEntity.KEY_ROUTE, OSMEntity.TAG_BUS);
+                    break;
+                case ferry:
+                    curRoute.setTag(OSMEntity.KEY_ROUTE, OSMEntity.TAG_FERRY);
+                    break;
+                case cablecar:
+                    curRoute.setTag(OSMEntity.KEY_ROUTE, OSMEntity.TAG_TRAM);
+                    break;
+                case gondola:
+                    logEvent(LogLevel.info, "OSM routes don’t typically cover Gondola routes.  Maybe use aerialway=gondola way instead?", lineNumber+1);
+                    curRoute.setTag(OSMEntity.KEY_ROUTE, OSMEntity.TAG_AERIALWAY);
+                    break;
+                case funicular:
+                    curRoute.setTag(OSMEntity.KEY_ROUTE, OSMEntity.TAG_TRAIN);
                     break;
             }
             routes.add(curRoute);

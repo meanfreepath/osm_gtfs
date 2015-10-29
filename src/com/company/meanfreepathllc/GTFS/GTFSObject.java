@@ -10,15 +10,10 @@ import java.util.List;
  * Created by nick on 10/27/15.
  */
 public abstract class GTFSObject {
-
-
-    public static String[] definedFields;
-    public static String[] requiredFields;
-
     protected final HashMap<String,String> fields;
 
     public GTFSObject() {
-        fields = new HashMap<>(definedFields.length);
+        fields = new HashMap<>(getDefinedFields().length);
     }
 
     public String getField(String name) {
@@ -29,9 +24,14 @@ public abstract class GTFSObject {
     }
     public abstract void postProcess() throws InvalidArgumentException;
 
+    public abstract String[] getDefinedFields();
+    public abstract String[] getRequiredFields();
+
+    protected abstract void addToList();
+
     protected List<String> checkRequiredFields() {
         List<String> missingFields = null;
-        for(String f: requiredFields) {
+        for(String f: getRequiredFields()) {
             if(!fields.containsKey(f)) {
                 if(missingFields == null) {
                     missingFields = new ArrayList<>();

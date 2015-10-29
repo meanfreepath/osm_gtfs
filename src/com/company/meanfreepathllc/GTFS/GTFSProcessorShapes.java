@@ -3,29 +3,32 @@ package com.company.meanfreepathllc.GTFS;
 import com.sun.javaws.exceptions.InvalidArgumentException;
 
 import java.io.*;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
 /**
- * Created by nick on 10/15/15.
+ * Created by nick on 10/28/15.
  */
-public class GTFSProcessorAgency extends GTFSProcessor {
-    private final static String FILE_NAME = "agency.txt";
-    public static GTFSProcessorAgency instance;
+public class GTFSProcessorShapes extends GTFSProcessor {
+    public static GTFSProcessorShapes instance;
 
-    public static GTFSProcessorAgency initInstance() throws IOException {
-        instance = new GTFSProcessorAgency();
+    static {
+        FILE_NAME = "shapes.txt";
+    }
+
+    public static GTFSProcessorShapes initInstance() throws IOException {
+        instance = new GTFSProcessorShapes();
         return instance;
     }
-    public GTFSProcessorAgency() throws IOException {
+    public GTFSProcessorShapes() throws IOException {
         gtfsColumnIndices = new HashMap<>();
 
         fp = new File(basePath + FILE_NAME);
         if(!fp.exists()) {
-            throw new FileNotFoundException("No agency.txt file found in directory!");
+            throw new FileNotFoundException("No shapes.txt file found in directory!");
         }
 
+        GTFSObjectShape tripData;
         List<String> explodedLine;
         int lineNumber = 0;
 
@@ -37,18 +40,17 @@ public class GTFSProcessorAgency extends GTFSProcessor {
                 continue;
             }
 
-            GTFSObjectAgency curAgency = new GTFSObjectAgency();
-
+            tripData = new GTFSObjectShape();
             if(lineNumber++ == 0) { //header line
-                processFileHeader(explodedLine, curAgency);
+                processFileHeader(explodedLine, tripData);
                 continue;
             }
 
             //run the handler for each column
             try {
-                processLine(explodedLine, curAgency);
+                processLine(explodedLine, tripData);
             } catch (InvalidArgumentException e) {
-                logEvent(LogLevel.error, e.getLocalizedMessage(), lineNumber+1);
+                logEvent(LogLevel.error, e.getLocalizedMessage(), lineNumber + 1);
                 continue;
             }
         }

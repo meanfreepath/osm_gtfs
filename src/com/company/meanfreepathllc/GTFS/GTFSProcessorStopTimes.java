@@ -3,29 +3,32 @@ package com.company.meanfreepathllc.GTFS;
 import com.sun.javaws.exceptions.InvalidArgumentException;
 
 import java.io.*;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
 /**
- * Created by nick on 10/15/15.
+ * Created by nick on 10/28/15.
  */
-public class GTFSProcessorAgency extends GTFSProcessor {
-    private final static String FILE_NAME = "agency.txt";
-    public static GTFSProcessorAgency instance;
+public class GTFSProcessorStopTimes extends GTFSProcessor {
+    public static GTFSProcessorStopTimes instance;
 
-    public static GTFSProcessorAgency initInstance() throws IOException {
-        instance = new GTFSProcessorAgency();
+    static {
+        FILE_NAME = "stop_times.txt";
+    }
+
+    public static GTFSProcessorStopTimes initInstance() throws IOException {
+        instance = new GTFSProcessorStopTimes();
         return instance;
     }
-    public GTFSProcessorAgency() throws IOException {
+    public GTFSProcessorStopTimes() throws IOException {
         gtfsColumnIndices = new HashMap<>();
 
         fp = new File(basePath + FILE_NAME);
         if(!fp.exists()) {
-            throw new FileNotFoundException("No agency.txt file found in directory!");
+            throw new FileNotFoundException("No stop_times.txt file found in directory!");
         }
 
+        GTFSObjectStopTime stopTimeData;
         List<String> explodedLine;
         int lineNumber = 0;
 
@@ -37,18 +40,17 @@ public class GTFSProcessorAgency extends GTFSProcessor {
                 continue;
             }
 
-            GTFSObjectAgency curAgency = new GTFSObjectAgency();
-
+            stopTimeData = new GTFSObjectStopTime();
             if(lineNumber++ == 0) { //header line
-                processFileHeader(explodedLine, curAgency);
+                processFileHeader(explodedLine, stopTimeData);
                 continue;
             }
 
             //run the handler for each column
             try {
-                processLine(explodedLine, curAgency);
+                processLine(explodedLine, stopTimeData);
             } catch (InvalidArgumentException e) {
-                logEvent(LogLevel.error, e.getLocalizedMessage(), lineNumber+1);
+                logEvent(LogLevel.error, e.getLocalizedMessage(), lineNumber + 1);
                 continue;
             }
         }

@@ -2,6 +2,8 @@ package com.company.meanfreepathllc.GTFS;
 
 import com.sun.javaws.exceptions.InvalidArgumentException;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 /**
@@ -13,6 +15,8 @@ public class GTFSObjectStop extends GTFSObject {
         none,
         station
     };
+
+    public final static int INITIAL_CAPACITY = 8192;
 
     public final static String
             FIELD_STOP_ID = "stop_id",
@@ -28,22 +32,28 @@ public class GTFSObjectStop extends GTFSObject {
             FIELD_STOP_TIMEZONE = "stop_timezone",
             FIELD_WHEELCHAIR_BOARDING = "wheelchair_boarding";
 
-    static {
-        String[] df = {FIELD_STOP_ID, FIELD_STOP_CODE, FIELD_STOP_NAME, FIELD_STOP_DESC, FIELD_STOP_LAT, FIELD_STOP_LON, FIELD_ZONE_ID, FIELD_STOP_URL, FIELD_LOCATION_TYPE, FIELD_PARENT_STATION, FIELD_STOP_TIMEZONE, FIELD_WHEELCHAIR_BOARDING};
-        definedFields = new String[df.length];
-        short i = 0;
-        for(String f : df) {
-            definedFields[i++] = f;
-        }
-        String[] rf = {FIELD_STOP_ID, FIELD_STOP_NAME, FIELD_STOP_LAT, FIELD_STOP_LON};
-        requiredFields = new String[rf.length];
-        i = 0;
-        for(String f : rf) {
-            requiredFields[i++] = f;
-        }
-    }
+    public final static String[] definedFields = {FIELD_STOP_ID, FIELD_STOP_CODE, FIELD_STOP_NAME, FIELD_STOP_DESC, FIELD_STOP_LAT, FIELD_STOP_LON, FIELD_ZONE_ID, FIELD_STOP_URL, FIELD_LOCATION_TYPE, FIELD_PARENT_STATION, FIELD_STOP_TIMEZONE, FIELD_WHEELCHAIR_BOARDING};
+    public final static String[] requiredFields = {FIELD_STOP_ID, FIELD_STOP_NAME, FIELD_STOP_LAT, FIELD_STOP_LON};
+
+    public final static List<GTFSObjectStop> allStops = new ArrayList<>(INITIAL_CAPACITY);
+    public final static HashMap<String, GTFSObjectStop> stopLookup = new HashMap<>(INITIAL_CAPACITY);
 
     public double lat, lon;
+
+    @Override
+    public String[] getDefinedFields() {
+        return definedFields;
+    }
+    @Override
+    public String[] getRequiredFields() {
+        return requiredFields;
+    }
+
+    @Override
+    protected void addToList() {
+        allStops.add(this);
+        stopLookup.put(getField(FIELD_STOP_ID), this);
+    }
 
     @Override
     public void postProcess() throws InvalidArgumentException {
@@ -57,5 +67,8 @@ public class GTFSObjectStop extends GTFSObject {
         //process any other fields
         lat = Double.parseDouble(fields.get(FIELD_STOP_LAT));
         lon = Double.parseDouble(fields.get(FIELD_STOP_LON));
+
+        //add to the main stops list
+        addToList();
     }
 }

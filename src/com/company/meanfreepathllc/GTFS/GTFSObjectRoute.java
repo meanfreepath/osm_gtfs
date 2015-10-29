@@ -2,12 +2,16 @@ package com.company.meanfreepathllc.GTFS;
 
 import com.sun.javaws.exceptions.InvalidArgumentException;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 /**
  * Created by nick on 10/27/15.
  */
 public class GTFSObjectRoute extends GTFSObject {
+    public final static int INITIAL_CAPACITY = 256, INITIAL_CAPACITY_TRIP = 2048;
+
     public final static String
             FIELD_ROUTE_ID = "route_id",
             FIELD_AGENCY_ID = "agency_id",
@@ -32,23 +36,26 @@ public class GTFSObjectRoute extends GTFSObject {
         gondola, //Gondola, Suspended cable car. Typically used for aerial cable cars where the car is suspended from the cable.
         funicular //Funicular. Any rail system designed for steep inclines.
     };
-    static {
-        String[] df = {FIELD_ROUTE_ID, FIELD_AGENCY_ID, FIELD_ROUTE_SHORT_NAME, FIELD_ROUTE_LONG_NAME, FIELD_ROUTE_DESC, FIELD_ROUTE_TYPE, FIELD_ROUTE_URL, FIELD_ROUTE_COLOR, FIELD_ROUTE_TEXT_COLOR};
-        definedFields = new String[df.length];
-        short i = 0;
-        for(String f : df) {
-            definedFields[i++] = f;
-        }
-        String[] rf = {FIELD_ROUTE_ID, FIELD_ROUTE_SHORT_NAME, FIELD_ROUTE_LONG_NAME, FIELD_ROUTE_TYPE};
-        requiredFields = new String[rf.length];
-        i = 0;
-        for(String f : rf) {
-            requiredFields[i++] = f;
-        }
-    }
 
-    public int routeType;
+    public final static String[] definedFields = {FIELD_ROUTE_ID, FIELD_AGENCY_ID, FIELD_ROUTE_SHORT_NAME, FIELD_ROUTE_LONG_NAME, FIELD_ROUTE_DESC, FIELD_ROUTE_TYPE, FIELD_ROUTE_URL, FIELD_ROUTE_COLOR, FIELD_ROUTE_TEXT_COLOR};
+    public final static String[] requiredFields = {FIELD_ROUTE_ID, FIELD_ROUTE_SHORT_NAME, FIELD_ROUTE_LONG_NAME, FIELD_ROUTE_TYPE};
+
+    public final static List<GTFSObjectRoute> allRoutes = new ArrayList<>(INITIAL_CAPACITY);
+    public final static HashMap<String, GTFSObjectRoute> routeLookup = new HashMap<>(INITIAL_CAPACITY);
+
+    public GTFSRouteType routeType;
     public GTFSObjectAgency agency;
+
+    public List<GTFSObjectTrip> trips = new ArrayList<>(INITIAL_CAPACITY_TRIP);
+
+    public void addTrip(GTFSObjectTrip trip) throws InvalidArgumentException {
+        if(!trip.getField(GTFSObjectTrip.FIELD_ROUTE_ID).equals(getField(FIELD_ROUTE_ID))) {
+            String[] errMsg = {""};
+            errMsg[0] = String.format("Trip id %s doesn’t match Route id %s", trip.getField(GTFSObjectTrip.FIELD_ROUTE_ID), getField(FIELD_ROUTE_ID));
+            throw new InvalidArgumentException(errMsg);
+        }
+        trips.add(trip);
+    }
 
     @Override
     public void postProcess() throws InvalidArgumentException {
@@ -60,7 +67,57 @@ public class GTFSObjectRoute extends GTFSObject {
         }
 
         //now add any processed values
-        routeType = Integer.parseInt(fields.get(FIELD_ROUTE_TYPE));
-        agency = GTFSProcessorAgency.instance.lookupAgencyById(fields.get(FIELD_AGENCY_ID));
+        int rawRouteType = Integer.parseInt(fields.get(FIELD_ROUTE_TYPE));
+        switch (rawRouteType) {
+            case 0:
+                routeType = GTFSRouteType.tramStreetcarLightrail;
+                break;
+            case 1:
+                routeType = GTFSRouteType.subwayMetro;
+                break;
+            case 2:
+                routeType = GTFSRouteType.rail;
+                break;
+            case 3:
+                routeType = GTFSRouteType.bus;
+                break;
+            case 4:
+                routeType = GTFSRouteType.ferry;
+                break;
+            case 5:
+                routeType = GTFSRouteType.cablecar;
+                break;
+            case 6:
+                routeType = GTFSRouteType.gondola;
+                break;
+            case 7:
+                routeType = GTFSRouteType.funicular;
+                break;
+            default:
+                String[] errMsg = {"Invalid route type " + rawRouteType};
+                throw new InvalidArgumentException(errMsg);
+        }
+
+        agency = GTFSObjectAgency.lookupAgencyById(fields.get(FIELD_AGENCY_ID));
+
+
+        //add to the main route list
+        addToList();
+    }
+
+    @Override
+    public String[] getDefinedFields() {
+        return definedFields;
+    }
+
+    @Override
+    public String[] getRequiredFields() {
+        return requiredFields;
+    }
+
+    @Override
+    protected void addToList() {
+        allRoutes.add(this);
+        routeLookup.put(getField(FIELD_ROUTE_ID), this);
     }
 }

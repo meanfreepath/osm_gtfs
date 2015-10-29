@@ -46,16 +46,18 @@ public class GTFSProcessorStops extends GTFSProcessor {
             if(explodedLine == null) { //i.e. blank line
                 continue;
             }
+
+            stopData = new GTFSObjectStop();
+
             if(lineNumber++ == 0) { //header line
-                processFileHeader(explodedLine);
+                processFileHeader(explodedLine, stopData);
                 continue;
             }
 
-            stopData = new GTFSObjectStop();
             try {
                 processLine(explodedLine, stopData);
             } catch (InvalidArgumentException e) {
-                logEvent(LogLevel.error, e.getMessage());
+                logEvent(LogLevel.error, e.getMessage(), lineNumber+1);
                 continue;
             }
 
@@ -77,8 +79,6 @@ public class GTFSProcessorStops extends GTFSProcessor {
             //stop_lat, stop_lon
             curStop.setTag(OSMEntity.KEY_LATITUDE, stopData.getField(GTFSObjectStop.FIELD_STOP_LAT));
             curStop.setTag(OSMEntity.KEY_LONGITUDE, stopData.getField(GTFSObjectStop.FIELD_STOP_LON));
-
-
 
             stops.add(curStop);
         }
