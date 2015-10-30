@@ -43,17 +43,21 @@ public class Main {
             GTFSProcessor.processData(GTFSObjectStopTime.class);
             System.out.printf("%d stop times found\n", GTFSObjectStopTime.allStopTimes.size());
 
+            GTFSProcessor.outputEventLogs();
+
             List<OSMEntity> wayList = new ArrayList<>();
+            DataTransmutator export = new DataTransmutator();
             for(GTFSObjectRoute route: GTFSObjectRoute.allRoutes) {
-                if(route.getField(GTFSObjectRoute.FIELD_ROUTE_ID).equals("100479")) {
-                    wayList.add(DataTransmutator.transmuteGTFSRoute(route));
-                }
+                /*if(route.getField(GTFSObjectRoute.FIELD_ROUTE_ID).equals("100151")) {
+                    wayList.add(export.transmuteGTFSRoute(route));
+                }*/
+                wayList.add(export.transmuteGTFSRoute(route));
                 System.out.printf("Route %s has %d trips\n", route.getField(GTFSObjectRoute.FIELD_ROUTE_SHORT_NAME), route.trips.size());
             }
             System.out.println("Writing to file…");
             OSMEntity.outputXml(wayList, GTFSProcessor.getBasePath() + "/routes.osm");
-
             System.out.println("Finished!");
+
         } catch (FileNotFoundException | IllegalAccessException | InstantiationException e) {
             e.printStackTrace();
         } catch (IOException e) {
