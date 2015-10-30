@@ -4,7 +4,7 @@ package com.company.meanfreepathllc.SpatialTypes;
  * Created by nick on 10/29/15.
  */
 public class Region {
-    public Point origin, extent;
+    public final Point origin, extent;
 
     /*public static Region combinedRegionBox(Region region1, Region region2) {
         if(region1 == null) {
@@ -42,5 +42,45 @@ public class Region {
         origin.longitude = Math.min(origin.longitude, otherRegion.origin.longitude);
         extent.latitude = Math.max(extent.latitude, otherRegion.extent.latitude);
         extent.longitude = Math.max(extent.longitude, otherRegion.extent.longitude);
+    }
+
+    public static Point computeCentroid(final Point[] vertices) {
+        Point centroid = new Point(0, 0);
+        double signedArea = 0.0;
+        double x0 = 0.0; // Current vertex X
+        double y0 = 0.0; // Current vertex Y
+        double x1 = 0.0; // Next vertex X
+        double y1 = 0.0; // Next vertex Y
+        double a = 0.0;  // Partial signed area
+
+        // For all vertices except last
+        int i=0;
+        for (i=0; i<vertices.length-1; ++i) {
+            x0 = vertices[i].longitude;
+            y0 = vertices[i].latitude;
+            x1 = vertices[i+1].longitude;
+            y1 = vertices[i+1].latitude;
+            a = x0*y1 - x1*y0;
+            signedArea += a;
+            centroid.longitude += (x0 + x1)*a;
+            centroid.latitude += (y0 + y1)*a;
+        }
+
+        // Do last vertex separately to avoid performing an expensive
+        // modulus operation in each iteration.
+        x0 = vertices[i].longitude;
+        y0 = vertices[i].latitude;
+        x1 = vertices[0].longitude;
+        y1 = vertices[0].latitude;
+        a = x0*y1 - x1*y0;
+        signedArea += a;
+        centroid.longitude += (x0 + x1)*a;
+        centroid.latitude += (y0 + y1)*a;
+
+        signedArea *= 0.5;
+        centroid.longitude /= (6.0*signedArea);
+        centroid.latitude /= (6.0*signedArea);
+
+        return centroid;
     }
 }
