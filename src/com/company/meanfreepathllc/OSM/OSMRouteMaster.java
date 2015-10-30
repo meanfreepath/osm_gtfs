@@ -10,6 +10,8 @@ public class OSMRouteMaster extends OSMRelation {
     }
     public OSMRouteMaster(long id) {
         super(id);
+        setTag(KEY_TYPE, TAG_ROUTE_MASTER);
+        setTag(KEY_PUBLIC_TRANSPORT_VERSION, "2");
     }
 
     public void addRoute(OSMRoute route) {
