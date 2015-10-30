@@ -54,16 +54,12 @@ public class Main {
             OSMEntity.outputXml(wayList, GTFSProcessor.getBasePath() + "/routes.osm");
 
             System.out.println("Finished!");
-        } catch (FileNotFoundException e) {
+        } catch (FileNotFoundException | IllegalAccessException | InstantiationException e) {
             e.printStackTrace();
         } catch (IOException e) {
             e.printStackTrace();
         //} catch (InvalidArgumentException e) {
           //  e.printStackTrace();
-            e.printStackTrace();
-        } catch (IllegalAccessException e) {
-            e.printStackTrace();
-        } catch (InstantiationException e) {
             e.printStackTrace();
         }
     }
