@@ -13,12 +13,12 @@ public class GTFSObjectTrip extends GTFSObject {
     public final static int INITIAL_CAPACITY = 65536, INITIAL_CAPACITY_STOPS = 128;
 
     public class StopTime {
-        GTFSObjectStop stop;
+        public final GTFSObjectStop stop;
 
         public StopTime(GTFSObjectStop stop) {
             this.stop = stop;
         }
-    };
+    }
 
     public final static String FIELD_ROUTE_ID = "route_id",
             FIELD_TRIP_ID = "trip_id",
@@ -40,22 +40,15 @@ public class GTFSObjectTrip extends GTFSObject {
     public GTFSObjectRoute parentRoute;
     public GTFSObjectCalendar parentService;
     public GTFSObjectShape shape;
-    public List<StopTime> stops = new ArrayList<>(INITIAL_CAPACITY_STOPS);
+    public final List<StopTime> stops = new ArrayList<>(INITIAL_CAPACITY_STOPS);
 
     public void addStopTime(GTFSObjectStopTime stopTime) {
         stops.add(new StopTime(stopTime.stop));
     }
 
-    @Override
-    public String[] getDefinedFields() {
-        return definedFields;
+    public GTFSObjectTrip() {
+        fields = new HashMap<>(getDefinedFields().length);
     }
-
-    @Override
-    public String[] getRequiredFields() {
-        return requiredFields;
-    }
-
     @Override
     protected void addToList() {
         allTrips.add(this);
@@ -76,13 +69,34 @@ public class GTFSObjectTrip extends GTFSObject {
         parentService = GTFSObjectCalendar.calendarLookup.get(getField(FIELD_SERVICE_ID));
         parentRoute.addTrip(this);
 
+        if(parentRoute == null) {
+            GTFSProcessor.logEvent(GTFSProcessor.LogLevel.warn, "Missing route for trip id " + getField(GTFSObjectTrip.FIELD_TRIP_ID));
+        }
+        if(parentService == null) {
+            GTFSProcessor.logEvent(GTFSProcessor.LogLevel.warn, "Missing service info for trip id " + getField(GTFSObjectTrip.FIELD_TRIP_ID));
+        }
+
         String shapeId = getField(FIELD_SHAPE_ID);
         if(shapeId != null) {
             shape = GTFSObjectShape.shapeLookup.get(shapeId);
+        } else {
+            System.out.println("No shape for trip " + getField(FIELD_TRIP_ID));
         }
-
 
         //add to the main trips list
         addToList();
+    }
+
+    @Override
+    public String getFileName() {
+        return "trips.txt";
+    }
+    @Override
+    public String[] getDefinedFields() {
+        return definedFields;
+    }
+    @Override
+    public String[] getRequiredFields() {
+        return requiredFields;
     }
 }

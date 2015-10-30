@@ -1,5 +1,6 @@
 package com.company.meanfreepathllc.GTFS;
 
+import com.company.meanfreepathllc.SpatialTypes.Point;
 import com.sun.javaws.exceptions.InvalidArgumentException;
 
 import java.util.ArrayList;
@@ -25,20 +26,22 @@ public class GTFSObjectShape extends GTFSObject {
     public final static List<GTFSObjectShape> allShapes = new ArrayList<>(INITIAL_CAPACITY);
     public final static HashMap<String, GTFSObjectShape> shapeLookup = new HashMap<>(INITIAL_CAPACITY);
 
-    public class Point {
-        double latitude, longitude, distanceTraveled;
-        int sequence;
+    public class ShapePoint extends Point{
+        public double distanceTraveled;
+        public int sequence;
 
-        public Point(String lat, String lon, String seq, String dist) {
-            latitude = Double.parseDouble(lat);
-            longitude = Double.parseDouble(lon);
+        public ShapePoint(String lat, String lon, String seq, String dist) {
+            super(lat, lon);
             sequence = Integer.parseInt(seq);
             distanceTraveled = dist != null && !dist.isEmpty() ? Double.parseDouble(dist) : -1.0;
         }
     }
 
-    public List<Point> points;
+    public List<ShapePoint> points;
 
+    public GTFSObjectShape() {
+        fields = new HashMap<>(getDefinedFields().length);
+    }
     @Override
     public void postProcess() throws InvalidArgumentException {
         List<String> missingFields = checkRequiredFields();
@@ -63,22 +66,24 @@ public class GTFSObjectShape extends GTFSObject {
         }
     }
     public void addPointFromShape(GTFSObjectShape shape) {
-        points.add(new Point(shape.getField(FIELD_SHAPE_PT_LAT), shape.getField(FIELD_SHAPE_PT_LON), shape.getField(FIELD_SHAPE_PT_SEQUENCE), shape.getField(FIELD_SHAPE_DIST_TRAVELED)));
-    }
-
-    @Override
-    public String[] getDefinedFields() {
-        return definedFields;
-    }
-
-    @Override
-    public String[] getRequiredFields() {
-        return requiredFields;
+        points.add(new ShapePoint(shape.getField(FIELD_SHAPE_PT_LAT), shape.getField(FIELD_SHAPE_PT_LON), shape.getField(FIELD_SHAPE_PT_SEQUENCE), shape.getField(FIELD_SHAPE_DIST_TRAVELED)));
     }
 
     @Override
     protected void addToList() {
         allShapes.add(this);
         shapeLookup.put(getField(FIELD_SHAPE_ID), this);
+    }
+    @Override
+    public String getFileName() {
+        return "shapes.txt";
+    }
+    @Override
+    public String[] getDefinedFields() {
+        return definedFields;
+    }
+    @Override
+    public String[] getRequiredFields() {
+        return requiredFields;
     }
 }

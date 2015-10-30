@@ -35,7 +35,7 @@ public class GTFSObjectRoute extends GTFSObject {
         cablecar, //Cable car. Used for street-level cable cars where the cable runs beneath the car.
         gondola, //Gondola, Suspended cable car. Typically used for aerial cable cars where the car is suspended from the cable.
         funicular //Funicular. Any rail system designed for steep inclines.
-    };
+    }
 
     public final static String[] definedFields = {FIELD_ROUTE_ID, FIELD_AGENCY_ID, FIELD_ROUTE_SHORT_NAME, FIELD_ROUTE_LONG_NAME, FIELD_ROUTE_DESC, FIELD_ROUTE_TYPE, FIELD_ROUTE_URL, FIELD_ROUTE_COLOR, FIELD_ROUTE_TEXT_COLOR};
     public final static String[] requiredFields = {FIELD_ROUTE_ID, FIELD_ROUTE_SHORT_NAME, FIELD_ROUTE_LONG_NAME, FIELD_ROUTE_TYPE};
@@ -46,8 +46,11 @@ public class GTFSObjectRoute extends GTFSObject {
     public GTFSRouteType routeType;
     public GTFSObjectAgency agency;
 
-    public List<GTFSObjectTrip> trips = new ArrayList<>(INITIAL_CAPACITY_TRIP);
+    public final List<GTFSObjectTrip> trips = new ArrayList<>(INITIAL_CAPACITY_TRIP);
 
+    public GTFSObjectRoute() {
+        fields = new HashMap<>(getDefinedFields().length);
+    }
     public void addTrip(GTFSObjectTrip trip) throws InvalidArgumentException {
         if(!trip.getField(GTFSObjectTrip.FIELD_ROUTE_ID).equals(getField(FIELD_ROUTE_ID))) {
             String[] errMsg = {""};
@@ -56,7 +59,6 @@ public class GTFSObjectRoute extends GTFSObject {
         }
         trips.add(trip);
     }
-
     @Override
     public void postProcess() throws InvalidArgumentException {
         List<String> missingFields = checkRequiredFields();
@@ -88,6 +90,7 @@ public class GTFSObjectRoute extends GTFSObject {
                 routeType = GTFSRouteType.cablecar;
                 break;
             case 6:
+                GTFSProcessor.logEvent(GTFSProcessor.LogLevel.info, "OSM routes don’t typically cover Gondola routes.  Maybe use aerialway=gondola way instead?");
                 routeType = GTFSRouteType.gondola;
                 break;
             case 7:
@@ -99,25 +102,28 @@ public class GTFSObjectRoute extends GTFSObject {
         }
 
         agency = GTFSObjectAgency.lookupAgencyById(fields.get(FIELD_AGENCY_ID));
-
+        if(agency == null) {
+            GTFSProcessor.logEvent(GTFSProcessor.LogLevel.warn, "No agency defined for route id \"" + getField(FIELD_ROUTE_ID) + "\": this is an error with the GTFS dataset.");
+        }
 
         //add to the main route list
         addToList();
     }
-
-    @Override
-    public String[] getDefinedFields() {
-        return definedFields;
-    }
-
-    @Override
-    public String[] getRequiredFields() {
-        return requiredFields;
-    }
-
     @Override
     protected void addToList() {
         allRoutes.add(this);
         routeLookup.put(getField(FIELD_ROUTE_ID), this);
+    }
+    @Override
+    public String getFileName() {
+        return "routes.txt";
+    }
+    @Override
+    public String[] getDefinedFields() {
+        return definedFields;
+    }
+    @Override
+    public String[] getRequiredFields() {
+        return requiredFields;
     }
 }

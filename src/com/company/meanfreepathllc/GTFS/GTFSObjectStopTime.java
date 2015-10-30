@@ -33,6 +33,9 @@ public class GTFSObjectStopTime extends GTFSObject {
     public GTFSObjectTrip parentTrip;
     public GTFSObjectStop stop;
 
+    public GTFSObjectStopTime() {
+        fields = new HashMap<>(getDefinedFields().length);
+    }
     @Override
     public void postProcess() throws InvalidArgumentException {
         List<String> missingFields = checkRequiredFields();
@@ -52,18 +55,20 @@ public class GTFSObjectStopTime extends GTFSObject {
     }
 
     @Override
-    public String[] getDefinedFields() {
-        return definedFields;
-    }
-
-    @Override
-    public String[] getRequiredFields() {
-        return requiredFields;
-    }
-
-    @Override
     protected void addToList() {
         allStopTimes.add(this);
        // stopTimeLookup.put(getField())
+    }
+    @Override
+    public String getFileName() {
+        return "stop_times.txt";
+    }
+    @Override
+    public String[] getDefinedFields() {
+        return definedFields;
+    }
+    @Override
+    public String[] getRequiredFields() {
+        return requiredFields;
     }
 }

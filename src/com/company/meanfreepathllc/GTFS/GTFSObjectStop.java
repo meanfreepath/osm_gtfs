@@ -1,5 +1,6 @@
 package com.company.meanfreepathllc.GTFS;
 
+import com.company.meanfreepathllc.SpatialTypes.Point;
 import com.sun.javaws.exceptions.InvalidArgumentException;
 
 import java.util.ArrayList;
@@ -14,7 +15,7 @@ public class GTFSObjectStop extends GTFSObject {
     public enum LocationType {
         none,
         station
-    };
+    }
 
     public final static int INITIAL_CAPACITY = 8192;
 
@@ -38,17 +39,11 @@ public class GTFSObjectStop extends GTFSObject {
     public final static List<GTFSObjectStop> allStops = new ArrayList<>(INITIAL_CAPACITY);
     public final static HashMap<String, GTFSObjectStop> stopLookup = new HashMap<>(INITIAL_CAPACITY);
 
-    public double lat, lon;
+    public Point coordinate;
 
-    @Override
-    public String[] getDefinedFields() {
-        return definedFields;
+    public GTFSObjectStop() {
+        fields = new HashMap<>(getDefinedFields().length);
     }
-    @Override
-    public String[] getRequiredFields() {
-        return requiredFields;
-    }
-
     @Override
     protected void addToList() {
         allStops.add(this);
@@ -65,10 +60,21 @@ public class GTFSObjectStop extends GTFSObject {
         }
 
         //process any other fields
-        lat = Double.parseDouble(fields.get(FIELD_STOP_LAT));
-        lon = Double.parseDouble(fields.get(FIELD_STOP_LON));
+        coordinate = new Point(fields.get(FIELD_STOP_LAT), fields.get(FIELD_STOP_LON));
 
         //add to the main stops list
         addToList();
+    }
+    @Override
+    public String getFileName() {
+        return "stops.txt";
+    }
+    @Override
+    public String[] getDefinedFields() {
+        return definedFields;
+    }
+    @Override
+    public String[] getRequiredFields() {
+        return requiredFields;
     }
 }

@@ -2,7 +2,6 @@ package com.company.meanfreepathllc.GTFS;
 
 import com.sun.javaws.exceptions.InvalidArgumentException;
 
-import java.io.ObjectInputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -31,6 +30,9 @@ public class GTFSObjectCalendar extends GTFSObject {
     public final static List<GTFSObjectCalendar> allCalendars = new ArrayList<>(INITIAL_CAPACITY);
     public final static HashMap<String, GTFSObjectCalendar> calendarLookup = new HashMap<>(INITIAL_CAPACITY);
 
+    public GTFSObjectCalendar() {
+        fields = new HashMap<>(getDefinedFields().length);
+    }
     @Override
     public void postProcess() throws InvalidArgumentException {
         List<String> missingFields = checkRequiredFields();
@@ -48,18 +50,20 @@ public class GTFSObjectCalendar extends GTFSObject {
     }
 
     @Override
-    public String[] getDefinedFields() {
-        return definedFields;
-    }
-
-    @Override
-    public String[] getRequiredFields() {
-        return requiredFields;
-    }
-
-    @Override
     protected void addToList() {
         allCalendars.add(this);
         calendarLookup.put(getField(FIELD_SERVICE_ID), this);
+    }
+    @Override
+    public String getFileName() {
+        return "calendar.txt";
+    }
+    @Override
+    public String[] getDefinedFields() {
+        return definedFields;
+    }
+    @Override
+    public String[] getRequiredFields() {
+        return requiredFields;
     }
 }

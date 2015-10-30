@@ -32,13 +32,8 @@ public class GTFSObjectAgency extends GTFSObject {
     public final static List<GTFSObjectAgency> allAgencies = new ArrayList<>(INITIAL_CAPACITY);
     private final static HashMap<String, GTFSObjectAgency> agencyLookup = new HashMap<>(INITIAL_CAPACITY);
 
-    @Override
-    public String[] getDefinedFields() {
-        return definedFields;
-    }
-    @Override
-    public String[] getRequiredFields() {
-        return requiredFields;
+    public GTFSObjectAgency() {
+        fields = new HashMap<>(getDefinedFields().length);
     }
 
     @Override
@@ -60,7 +55,7 @@ public class GTFSObjectAgency extends GTFSObject {
     @Override
     public void postProcess() throws InvalidArgumentException {
         List<String> missingFields = checkRequiredFields();
-        if(missingFields != null && missingFields.size() > 0) {
+        if (missingFields != null && missingFields.size() > 0) {
             String[] errMsg = {""};
             errMsg[0] = String.format("Missing the following fields: %s", String.join(", ", missingFields));
             throw new InvalidArgumentException(errMsg);
@@ -84,5 +79,17 @@ public class GTFSObjectAgency extends GTFSObject {
                 }
         }
         return null;
+    }
+    @Override
+    public String getFileName() {
+        return "agency.txt";
+    }
+    @Override
+    public String[] getDefinedFields() {
+        return definedFields;
+    }
+    @Override
+    public String[] getRequiredFields() {
+        return requiredFields;
     }
 }
