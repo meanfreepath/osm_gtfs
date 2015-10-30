@@ -2,6 +2,7 @@ package com.company.meanfreepathllc.GTFS;
 
 import com.sun.javaws.exceptions.InvalidArgumentException;
 
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -11,6 +12,7 @@ import java.util.List;
  */
 public class GTFSObjectStopTime extends GTFSObject {
     public final static int INITIAL_CAPACITY = 2097152;
+//    private final static DateTimeFormatter TIME_FORMATTER = DateTimeFormatter.ISO_LOCAL_TIME.withResolverStyle(ResolverStyle.LENIENT); //lenient to allow times the following day (e.g. 24:09, 25:30, etc)
 
     public final static String
             FIELD_TRIP_ID = "trip_id",
@@ -28,10 +30,10 @@ public class GTFSObjectStopTime extends GTFSObject {
     public final static String[] requiredFields = {FIELD_TRIP_ID, FIELD_ARRIVAL_TIME, FIELD_DEPARTURE_TIME, FIELD_STOP_ID, FIELD_STOP_SEQUENCE};
 
     public final static List<GTFSObjectStopTime> allStopTimes = new ArrayList<>(INITIAL_CAPACITY);
-   // public final static HashMap<String, GTFSObjectStopTime> stopTimeLookup = new HashMap<>(INITIAL_CAPACITY);
 
-    public GTFSObjectTrip parentTrip;
     public GTFSObjectStop stop;
+    public LocalTime arrival_time, departure_time;
+    public int stop_sequence;
 
     public GTFSObjectStopTime() {
         fields = new HashMap<>(getDefinedFields().length);
@@ -46,10 +48,15 @@ public class GTFSObjectStopTime extends GTFSObject {
         }
 
         //assign to the relevant trips and stops
-        parentTrip = GTFSObjectTrip.tripLookup.get(getField(FIELD_TRIP_ID));
+        GTFSObjectTrip parentTrip = GTFSObjectTrip.tripLookup.get(getField(FIELD_TRIP_ID));
         stop = GTFSObjectStop.stopLookup.get(getField(FIELD_STOP_ID));
-
+        stop.addStopTime(this);
         parentTrip.addStopTime(this);
+
+        //arrival_time = LocalTime.parse(getField(FIELD_ARRIVAL_TIME), TIME_FORMATTER);
+        //departure_time = LocalTime.parse(getField(FIELD_DEPARTURE_TIME), TIME_FORMATTER);
+
+        stop_sequence = Integer.parseInt(getField(FIELD_STOP_SEQUENCE));
 
         addToList();
     }

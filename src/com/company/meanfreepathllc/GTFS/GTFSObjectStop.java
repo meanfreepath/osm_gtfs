@@ -17,7 +17,7 @@ public class GTFSObjectStop extends GTFSObject {
         station
     }
 
-    public final static int INITIAL_CAPACITY = 8192;
+    public final static int INITIAL_CAPACITY = 8192, INITIAL_CAPACITY_STOP_TIME = 128;
 
     public final static String
             FIELD_STOP_ID = "stop_id",
@@ -38,11 +38,15 @@ public class GTFSObjectStop extends GTFSObject {
 
     public final static List<GTFSObjectStop> allStops = new ArrayList<>(INITIAL_CAPACITY);
     public final static HashMap<String, GTFSObjectStop> stopLookup = new HashMap<>(INITIAL_CAPACITY);
+    public final List<GTFSObjectStopTime> stopTimes = new ArrayList<>(INITIAL_CAPACITY_STOP_TIME);
 
     public Point coordinate;
 
     public GTFSObjectStop() {
         fields = new HashMap<>(getDefinedFields().length);
+    }
+    public void addStopTime(GTFSObjectStopTime stopTime) {
+        stopTimes.add(stopTime);
     }
     @Override
     protected void addToList() {

@@ -2,22 +2,17 @@ package com.company.meanfreepathllc.GTFS;
 
 import com.sun.javaws.exceptions.InvalidArgumentException;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
+import java.util.*;
 
 /**
  * Created by nick on 10/28/15.
  */
 public class GTFSObjectTrip extends GTFSObject {
     public final static int INITIAL_CAPACITY = 65536, INITIAL_CAPACITY_STOPS = 128;
+    private final static String DIRECTION_ID_0 = "0", DIRECTION_ID_1 = "1";
 
-    public class StopTime {
-        public final GTFSObjectStop stop;
-
-        public StopTime(GTFSObjectStop stop) {
-            this.stop = stop;
-        }
+    public enum GTFSTripDirection {
+        direction0, direction1
     }
 
     public final static String FIELD_ROUTE_ID = "route_id",
@@ -37,13 +32,27 @@ public class GTFSObjectTrip extends GTFSObject {
     public final static List<GTFSObjectTrip> allTrips = new ArrayList<>(INITIAL_CAPACITY);
     public final static HashMap<String, GTFSObjectTrip> tripLookup = new HashMap<>(INITIAL_CAPACITY);
 
+    private final static Comparator<GTFSObjectStopTime> stopTimeComparator = new Comparator<GTFSObjectStopTime>() {
+        @Override
+        public int compare(GTFSObjectStopTime o1, GTFSObjectStopTime o2) {
+            if(o1.stop_sequence < o2.stop_sequence)  {
+                return -1;
+            } else if(o1.stop_sequence > o2.stop_sequence) {
+                return 1;
+            } else {
+                return 0;
+            }
+        }
+    };
+
+    public GTFSTripDirection direction;
     public GTFSObjectRoute parentRoute;
     public GTFSObjectCalendar parentService;
     public GTFSObjectShape shape;
-    public final List<StopTime> stops = new ArrayList<>(INITIAL_CAPACITY_STOPS);
+    public final List<GTFSObjectStopTime> stops = new ArrayList<>(INITIAL_CAPACITY_STOPS);
 
     public void addStopTime(GTFSObjectStopTime stopTime) {
-        stops.add(new StopTime(stopTime.stop));
+        stops.add(stopTime);
     }
 
     public GTFSObjectTrip() {
@@ -65,15 +74,26 @@ public class GTFSObjectTrip extends GTFSObject {
         }
 
         //process any other fields
+        switch (getField(FIELD_DIRECTION_ID)) {
+            case DIRECTION_ID_0:
+                direction = GTFSTripDirection.direction0;
+                break;
+            case DIRECTION_ID_1:
+                direction = GTFSTripDirection.direction1;
+                break;
+            default:
+                GTFSProcessor.logEvent(GTFSProcessor.LogLevel.error, "Invalid direction " + getField(FIELD_DIRECTION_ID) + " for trip id " + getField(FIELD_TRIP_ID));
+                break;
+        }
         parentRoute = GTFSObjectRoute.routeLookup.get(getField(FIELD_ROUTE_ID));
         parentService = GTFSObjectCalendar.calendarLookup.get(getField(FIELD_SERVICE_ID));
         parentRoute.addTrip(this);
 
         if(parentRoute == null) {
-            GTFSProcessor.logEvent(GTFSProcessor.LogLevel.warn, "Missing route for trip id " + getField(GTFSObjectTrip.FIELD_TRIP_ID));
+            GTFSProcessor.logEvent(GTFSProcessor.LogLevel.warn, "Missing route for trip id " + getField(FIELD_TRIP_ID));
         }
         if(parentService == null) {
-            GTFSProcessor.logEvent(GTFSProcessor.LogLevel.warn, "Missing service info for trip id " + getField(GTFSObjectTrip.FIELD_TRIP_ID));
+            GTFSProcessor.logEvent(GTFSProcessor.LogLevel.warn, "Missing service info for trip id " + getField(FIELD_TRIP_ID));
         }
 
         String shapeId = getField(FIELD_SHAPE_ID);
@@ -82,6 +102,9 @@ public class GTFSObjectTrip extends GTFSObject {
         } else {
             System.out.println("No shape for trip " + getField(FIELD_TRIP_ID));
         }
+
+        //ensure the stops are ordered by their stop_sequence field
+        Collections.sort(stops, stopTimeComparator);
 
         //add to the main trips list
         addToList();

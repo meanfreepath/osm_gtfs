@@ -38,7 +38,6 @@ public class GTFSProcessor {
             message = msg;
             fileName = file;
             lineNumber = line + 1;
-            System.out.println(fileName + (lineNumber > 0 ? "(line " + lineNumber + "): " : ": ") +  eventLevel + ": " + message);
         }
     }
 
@@ -46,7 +45,11 @@ public class GTFSProcessor {
         LogEvent event = new LogEvent(level, message, curFileName, curLineNumber);
         eventLog.add(event);
     }
-
+    public static void outputEventLogs() {
+        for(LogEvent event: eventLog) {
+            System.out.println(event.fileName + "(line " + event.lineNumber + "): " +  event.eventLevel.toString() + ": " + event.message);
+        }
+    }
     public static void processData(Class<? extends GTFSObject> objectClass) throws IOException, IllegalAccessException, InstantiationException {
         GTFSObject dataObject;
         List<String> explodedLine;
@@ -57,8 +60,8 @@ public class GTFSProcessor {
         curFileName = dataObject.getFileName();
         String[] definedFields = dataObject.getDefinedFields();
 
-        //String[] definedFields = (String[]) gdf.invoke(null, null);
         final HashMap<Short, String> gtfsColumnIndices = new HashMap<>(definedFields.length);
+        final HashMap<Short, String> gtfsColumnIndicesNonStandard = new HashMap<>();
 
         File fp = new File(basePath + curFileName);
         if(!fp.exists()) {
@@ -89,8 +92,10 @@ public class GTFSProcessor {
                         if(fieldOk) {
                             gtfsColumnIndices.put(colIdx++, colVal);
                         } else {
-                            gtfsColumnIndices.put(colIdx++, null);
-                            logEvent(LogLevel.warn, "Ignoring values in undefined column “" + colVal + "”");
+                            gtfsColumnIndices.put(colIdx, null);
+                            gtfsColumnIndicesNonStandard.put(colIdx, colVal);
+                            colIdx++;
+                            logEvent(LogLevel.info, "Nonstandard GTFS column “" + colVal + "” found: adding to nonstandard fields.");
                         }
                     }
                     continue;
@@ -99,10 +104,14 @@ public class GTFSProcessor {
                 //run the handler for each column
                 String fieldName;
                 for (final String colVal : explodedLine) {
-                    fieldName = gtfsColumnIndices.get(colIdx++);
+                    fieldName = gtfsColumnIndices.get(colIdx);
                     if(fieldName != null) { //i.e. the field is defined in the spec
                         dataObject.setField(fieldName, colVal);
+                    } else {
+                        fieldName = gtfsColumnIndicesNonStandard.get(colIdx);
+                        dataObject.setNonStandardField(fieldName, colVal);
                     }
+                    colIdx++;
                 }
                 dataObject.postProcess();
             } catch (InstantiationException | IllegalAccessException | InvalidArgumentException e) {

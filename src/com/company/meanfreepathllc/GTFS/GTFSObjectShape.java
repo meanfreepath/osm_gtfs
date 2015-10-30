@@ -30,14 +30,15 @@ public class GTFSObjectShape extends GTFSObject {
         public double distanceTraveled;
         public int sequence;
 
-        public ShapePoint(String lat, String lon, String seq, String dist) {
+        public ShapePoint(String lat, String lon, String seq, double dist) {
             super(lat, lon);
             sequence = Integer.parseInt(seq);
-            distanceTraveled = dist != null && !dist.isEmpty() ? Double.parseDouble(dist) : -1.0;
+            distanceTraveled = dist;
         }
     }
 
     public List<ShapePoint> points;
+    public double totalDistanceTraveled = -1.0;
 
     public GTFSObjectShape() {
         fields = new HashMap<>(getDefinedFields().length);
@@ -66,7 +67,15 @@ public class GTFSObjectShape extends GTFSObject {
         }
     }
     public void addPointFromShape(GTFSObjectShape shape) {
-        points.add(new ShapePoint(shape.getField(FIELD_SHAPE_PT_LAT), shape.getField(FIELD_SHAPE_PT_LON), shape.getField(FIELD_SHAPE_PT_SEQUENCE), shape.getField(FIELD_SHAPE_DIST_TRAVELED)));
+        final String dt = shape.getField(FIELD_SHAPE_DIST_TRAVELED);
+        final double distanceTraveled;
+        if(dt != null && !dt.isEmpty()) {
+            distanceTraveled = Double.parseDouble(dt);
+            totalDistanceTraveled += distanceTraveled;
+        } else {
+            distanceTraveled = -1.0;
+        }
+        points.add(new ShapePoint(shape.getField(FIELD_SHAPE_PT_LAT), shape.getField(FIELD_SHAPE_PT_LON), shape.getField(FIELD_SHAPE_PT_SEQUENCE), distanceTraveled));
     }
 
     @Override
