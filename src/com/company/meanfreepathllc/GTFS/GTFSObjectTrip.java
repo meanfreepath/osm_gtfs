@@ -12,7 +12,7 @@ public class GTFSObjectTrip extends GTFSObject {
     private final static String DIRECTION_ID_0 = "0", DIRECTION_ID_1 = "1";
 
     public enum GTFSTripDirection {
-        direction0, direction1
+        direction0, direction1, directionNone
     }
 
     public final static String FIELD_ROUTE_ID = "route_id",
@@ -74,7 +74,8 @@ public class GTFSObjectTrip extends GTFSObject {
         }
 
         //process any other fields
-        switch (getField(FIELD_DIRECTION_ID)) {
+        String directionVal = getField(FIELD_DIRECTION_ID);
+        switch (directionVal) {
             case DIRECTION_ID_0:
                 direction = GTFSTripDirection.direction0;
                 break;
@@ -82,7 +83,7 @@ public class GTFSObjectTrip extends GTFSObject {
                 direction = GTFSTripDirection.direction1;
                 break;
             default:
-                GTFSProcessor.logEvent(GTFSProcessor.LogLevel.error, "Invalid direction " + getField(FIELD_DIRECTION_ID) + " for trip id " + getField(FIELD_TRIP_ID));
+                direction = GTFSTripDirection.directionNone;
                 break;
         }
         parentRoute = GTFSObjectRoute.routeLookup.get(getField(FIELD_ROUTE_ID));
