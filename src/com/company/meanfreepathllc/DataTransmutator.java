@@ -29,8 +29,8 @@ public class DataTransmutator {
         if(tripRef == null) {
             tripRef = tripData.getField(GTFSObjectTrip.FIELD_TRIP_ID);
         }
-        shapeWay.addTag(OSMEntity.KEY_REF, tripRef);
-        shapeWay.addTag(OSMEntity.KEY_NAME, tripData.getField(GTFSObjectTrip.FIELD_TRIP_HEADSIGN));
+        shapeWay.setTag(OSMEntity.KEY_REF, tripRef);
+        shapeWay.setTag(OSMEntity.KEY_NAME, tripData.getField(GTFSObjectTrip.FIELD_TRIP_HEADSIGN));
 
         for (GTFSObjectShape.ShapePoint pt : tripData.shape.points) {
             shapeWay.addNode(OSMNode.create(pt));
