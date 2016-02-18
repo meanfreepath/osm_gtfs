@@ -4,8 +4,7 @@ import com.company.meanfreepathllc.GTFS.*;
 import com.company.meanfreepathllc.OSM.*;
 import com.sun.javaws.exceptions.InvalidArgumentException;
 
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -17,20 +16,26 @@ import java.util.regex.Pattern;
  */
 public class DataTransmutator {
     private final static String KEY_GTFS_AGENCY_ID = "gtfs:agency_id", KEY_GTFS_DATASET_ID = "gtfs:dataset_id", KEY_GTFS_STOP_ID = "gtfs:stop_id", KEY_GTFS_ROUTE_ID = "gtfs:route_id", KEY_GTFS_TRIP_ID = "gtfs:trip_id", KEY_GTFS_SHAPE_ID = "gtfs:shape_id";
-    private final static int INITIAL_CAPACITY = 65536;
+    private final static int INITIAL_CAPACITY = 262144;
     private final static String BAY_REGEX = "[ :-]* bay ([\\S\\d]+)";
     private final static Pattern bayPattern = Pattern.compile(BAY_REGEX, Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE | Pattern.UNICODE_CHARACTER_CLASS);
 
-    public final String datasetId;
+    public final String datasetId, datasetSource;
 
-    public final HashMap<Integer, OSMEntity> allEntities = new HashMap<>(INITIAL_CAPACITY);
+    /**
+     * Tracks the GTFS entities that have been added to the OSM entity space, to avoid duplication
+     */
+    private final HashMap<Integer, OSMEntity> allGTFSEntities = new HashMap<>(INITIAL_CAPACITY);
+    private final OSMEntitySpace outputEntitySpace;
 
-    public DataTransmutator(final String datasetId) {
+    public DataTransmutator(final String datasetId, final String datasetSource) {
         this.datasetId = datasetId;
+        this.datasetSource = datasetSource;
+        outputEntitySpace = new OSMEntitySpace(INITIAL_CAPACITY);
     }
 
-    public OSMWay transmuteGTFSTrip(GTFSObjectTrip tripData) throws InvalidArgumentException {
-        OSMWay shapeWay = (OSMWay) osmEntityForGTFSObject(tripData.shape, OSMWay.class);
+    private OSMWay transmuteGTFSTrip(GTFSObjectTrip tripData) {
+        final OSMWay shapeWay = outputEntitySpace.createWay(null, null);
       //  System.out.println("Trip " + tripData.getField(GTFSObjectTrip.FIELD_TRIP_ID) + ": " + tripData.fields.toString());
         String tripRef = tripData.getField(GTFSObjectTrip.FIELD_TRIP_SHORT_NAME);
         if(tripRef == null) {
@@ -38,21 +43,25 @@ public class DataTransmutator {
         }
 
         shapeWay.setTag(KEY_GTFS_DATASET_ID, datasetId);
+        shapeWay.setTag(OSMEntity.KEY_SOURCE, datasetSource);
         shapeWay.setTag(KEY_GTFS_SHAPE_ID, tripData.getField(GTFSObjectTrip.FIELD_SHAPE_ID));
         shapeWay.setTag(OSMEntity.KEY_REF, tripRef);
         shapeWay.setTag(OSMEntity.KEY_NAME, tripData.getField(GTFSObjectTrip.FIELD_TRIP_HEADSIGN));
 
-        for (GTFSObjectShape.ShapePoint pt : tripData.shape.points) {
-            shapeWay.addNode(OSMNode.create(pt));
+        for (final GTFSObjectShape.ShapePoint pt : tripData.shape.points) {
+            shapeWay.appendNode(outputEntitySpace.createNode(pt.latitude, pt.longitude, null));
         }
 
+        outputEntitySpace.addEntity(shapeWay, OSMEntity.TagMergeStrategy.keepTags, null);
         return shapeWay;
     }
     public OSMRelation transmuteGTFSRoute(GTFSObjectRoute routeData) throws InvalidArgumentException {
-        OSMRouteMaster osmRouteMaster = (OSMRouteMaster) osmEntityForGTFSObject(routeData, OSMRouteMaster.class);
+        final OSMRelation osmRouteMaster = outputEntitySpace.createRelation(null, null);
+        OSMPresetFactory.makeRouteMaster(osmRouteMaster);
 
         //agency_id
         osmRouteMaster.setTag(KEY_GTFS_DATASET_ID, datasetId);
+        osmRouteMaster.setTag(OSMEntity.KEY_SOURCE, datasetSource);
         osmRouteMaster.setTag(KEY_GTFS_AGENCY_ID, routeData.agency.getField(GTFSObjectAgency.FIELD_AGENCY_ID));
         osmRouteMaster.setTag(OSMEntity.KEY_OPERATOR, routeData.agency.getField(GTFSObjectAgency.FIELD_AGENCY_NAME));
 
@@ -77,46 +86,46 @@ public class DataTransmutator {
         //route_desc
         processRouteDesc(routeData.getField(GTFSObjectRoute.FIELD_ROUTE_DESC), osmRouteMaster);
 
-        final String[] debugRouteWay = {"", ""};
+        final String[] routeWayTags = {"", ""};
         switch(routeData.routeType) {
             case tramStreetcarLightrail:
                 osmRouteMaster.setTag(OSMEntity.KEY_ROUTE_MASTER, OSMEntity.TAG_LIGHT_RAIL); //NOTE: GTFS conflates tram and light_rail types
-                debugRouteWay[0] = "railway";
-                debugRouteWay[1] = "light_rail";
+                routeWayTags[0] = "railway";
+                routeWayTags[1] = "light_rail";
                 break;
             case subwayMetro:
                 osmRouteMaster.setTag(OSMEntity.KEY_ROUTE_MASTER, OSMEntity.TAG_SUBWAY);
-                debugRouteWay[0] = "railway";
-                debugRouteWay[1] = "subway";
+                routeWayTags[0] = "railway";
+                routeWayTags[1] = "subway";
             case rail:
                 osmRouteMaster.setTag(OSMEntity.KEY_ROUTE_MASTER, OSMEntity.TAG_TRAIN);
-                debugRouteWay[0] = "railway";
-                debugRouteWay[1] = "rail";
+                routeWayTags[0] = "railway";
+                routeWayTags[1] = "rail";
                 break;
             case bus:
                 osmRouteMaster.setTag(OSMEntity.KEY_ROUTE_MASTER, OSMEntity.TAG_BUS);
-                debugRouteWay[0] = "highway";
-                debugRouteWay[1] = "road";
+                routeWayTags[0] = "highway";
+                routeWayTags[1] = "road";
                 break;
             case ferry:
                 osmRouteMaster.setTag(OSMEntity.KEY_ROUTE_MASTER, OSMEntity.TAG_FERRY);
-                debugRouteWay[0] = "route";
-                debugRouteWay[1] = "ferry";
+                routeWayTags[0] = "route";
+                routeWayTags[1] = "ferry";
                 break;
             case cablecar:
                 osmRouteMaster.setTag(OSMEntity.KEY_ROUTE_MASTER, OSMEntity.TAG_TRAM);
-                debugRouteWay[0] = "railway";
-                debugRouteWay[1] = "tram";
+                routeWayTags[0] = "railway";
+                routeWayTags[1] = "tram";
                 break;
             case gondola:
                 osmRouteMaster.setTag(OSMEntity.KEY_ROUTE_MASTER, OSMEntity.TAG_AERIALWAY);
-                debugRouteWay[0] = "aerialway";
-                debugRouteWay[1] = "gondola";
+                routeWayTags[0] = "aerialway";
+                routeWayTags[1] = "gondola";
                 break;
             case funicular:
                 osmRouteMaster.setTag(OSMEntity.KEY_ROUTE_MASTER, OSMEntity.TAG_TRAIN);
-                debugRouteWay[0] = "railway";
-                debugRouteWay[1] = "rail";
+                routeWayTags[0] = "railway";
+                routeWayTags[1] = "rail";
                 break;
         }
 
@@ -148,13 +157,15 @@ public class DataTransmutator {
         }
 
         //and add as members to the relation
-        OSMRoute tripRoute;
+        OSMRelation tripRoute;
         OSMWay shapeWay;
         for(GTFSObjectTrip trip: tripsToUse.values()) {
             if(trip.shape != null) {
                 //init the OSM route relation for the trip and set the tags as needed
-                tripRoute = (OSMRoute) osmEntityForGTFSObject(trip, OSMRoute.class);
+                tripRoute = outputEntitySpace.createRelation(null, null);
+                OSMPresetFactory.makeRoute(tripRoute);
                 tripRoute.setTag(KEY_GTFS_DATASET_ID, datasetId);
+                tripRoute.setTag(OSMEntity.KEY_SOURCE, datasetSource);
                 tripRoute.setTag(KEY_GTFS_TRIP_ID, trip.getField(GTFSObjectTrip.FIELD_TRIP_ID));
                 tripRoute.setTag(KEY_GTFS_ROUTE_ID, trip.getField(GTFSObjectTrip.FIELD_ROUTE_ID));
                 tripRoute.setTag(KEY_GTFS_SHAPE_ID, trip.getField(GTFSObjectTrip.FIELD_SHAPE_ID));
@@ -165,7 +176,7 @@ public class DataTransmutator {
 
                 //add the shape (which details the path of the route) for later application to OSM highways
                 shapeWay = transmuteGTFSTrip(trip);
-                shapeWay.setTag(debugRouteWay[0], debugRouteWay[1]);
+                shapeWay.setTag(routeWayTags[0], routeWayTags[1]);
                 tripRoute.addMember(shapeWay, "");
 
                 //also compile the stops and add them to the relation
@@ -174,72 +185,61 @@ public class DataTransmutator {
                 }
 
                 //and add the trip to the route master
-                osmRouteMaster.addRoute(tripRoute);
+                osmRouteMaster.addMember(tripRoute, OSMEntity.MEMBERSHIP_DEFAULT);
             }
         }
         return osmRouteMaster;
     }
-    private OSMEntity osmEntityForGTFSObject(GTFSObject originalObject, Class<? extends OSMEntity> createClass) {
-        OSMEntity entity = allEntities.get(originalObject.internalId);
-        if(entity == null && createClass != null) {
-            try {
-                Method createMethod = createClass.getMethod("create");
-                entity = (OSMEntity) createMethod.invoke(null);
-                addEntity(originalObject, entity);
-            } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
-                e.printStackTrace();
-            }
+    private OSMNode createStopNode(final GTFSObjectStop gtfsObject) {
+        OSMNode existingEntity = (OSMNode) allGTFSEntities.get(gtfsObject.internalId);
+        if(existingEntity == null) {
+            existingEntity = outputEntitySpace.createNode(gtfsObject.coordinate.latitude, gtfsObject.coordinate.longitude, null);
+            allGTFSEntities.put(gtfsObject.internalId, existingEntity);
         }
-        return entity;
-    }
-    private void addEntity(GTFSObject originalObject, OSMEntity entity) {
-        allEntities.put(originalObject.internalId, entity);
+        return existingEntity;
     }
     private void processStopForRoute(GTFSObjectStop stopData, GTFSObjectRoute route, OSMRelation osmRoute) {
         final OSMEntity osmStop;
 
+        osmStop = createStopNode(stopData);
         switch(route.routeType) {
             case tramStreetcarLightrail: //NOTE: GTFS conflates tram and light_rail types
-                osmStop = osmEntityForGTFSObject(stopData, OSMPlatform.class);
-                osmStop.setTag(OSMPublicTransport.KEY_TRAIN, OSMEntity.TAG_YES);
+                OSMPresetFactory.makePlatform(osmStop);
+                osmStop.setTag(OSMEntity.KEY_TRAIN, OSMEntity.TAG_YES);
                 break;
             case subwayMetro:
-                osmStop = osmEntityForGTFSObject(stopData, OSMPlatform.class);
-                osmStop.setTag(OSMPublicTransport.KEY_TRAIN, OSMEntity.TAG_YES);
+                OSMPresetFactory.makeSubwayPlatform(osmStop);
                 break;
             case rail:
-                osmStop = osmEntityForGTFSObject(stopData, OSMPlatform.class);
-                osmStop.setTag(OSMPublicTransport.KEY_TRAIN, OSMEntity.TAG_YES);
+                OSMPresetFactory.makeTrainPlatform(osmStop);
                 break;
             case bus:
-                osmStop = osmEntityForGTFSObject(stopData, OSMPlatform.class);
-                osmStop.setTag(OSMPublicTransport.KEY_BUS, OSMPublicTransport.TAG_YES);
-                osmStop.setTag(OSMPublicTransport.KEY_HIGHWAY, OSMPublicTransport.TAG_BUS_STOP);
+                OSMPresetFactory.makeBusPlatform(osmStop);
                 break;
             case ferry:
-                osmStop = osmEntityForGTFSObject(stopData, OSMStopPosition.class);
-                osmStop.setTag(OSMPublicTransport.KEY_FERRY, OSMEntity.TAG_YES);
-                osmStop.setTag(OSMPublicTransport.KEY_AMENITY, OSMPublicTransport.TAG_LEGACY_FERRY_TERMINAL);
+                OSMPresetFactory.makePlatform(osmStop);
+                osmStop.setTag(OSMEntity.KEY_FERRY, OSMEntity.TAG_YES);
+                osmStop.setTag(OSMEntity.KEY_AMENITY, OSMEntity.TAG_LEGACY_FERRY_TERMINAL);
                 break;
             case cablecar:
-                osmStop = osmEntityForGTFSObject(stopData, OSMPlatform.class);
-                osmStop.setTag(OSMPublicTransport.KEY_TRAM, OSMEntity.TAG_YES);
+                OSMPresetFactory.makePlatform(osmStop);
+                osmStop.setTag(OSMEntity.KEY_TRAM, OSMEntity.TAG_YES);
                 break;
             case gondola:
-                osmStop = osmEntityForGTFSObject(stopData, OSMPlatform.class);
-                osmStop.setTag(OSMPublicTransport.KEY_AERIALWAY, OSMEntity.TAG_YES);
+                OSMPresetFactory.makePlatform(osmStop);
+                osmStop.setTag(OSMEntity.KEY_AERIALWAY, OSMEntity.TAG_YES);
                 break;
             case funicular:
-                osmStop = osmEntityForGTFSObject(stopData, OSMPlatform.class);
-                osmStop.setTag(OSMPublicTransport.KEY_FUNICULAR, OSMEntity.TAG_YES);
+                OSMPresetFactory.makePlatform(osmStop);
+                osmStop.setTag(OSMEntity.KEY_FUNICULAR, OSMEntity.TAG_YES);
                 break;
             default: //shouldn't happen (all cases handled)
-                osmStop = osmEntityForGTFSObject(stopData, OSMPlatform.class);
                 break;
         }
 
         //tags common to all stops
         osmStop.setTag(KEY_GTFS_DATASET_ID, datasetId);
+        osmStop.setTag(OSMEntity.KEY_SOURCE, datasetSource);
         osmStop.setTag(KEY_GTFS_STOP_ID, stopData.getField(GTFSObjectStop.FIELD_STOP_ID));
         osmStop.setTag(OSMEntity.KEY_REF, stopData.getField(GTFSObjectStop.FIELD_STOP_ID));
         osmStop.setTag(OSMEntity.KEY_NAME, stopData.getField(GTFSObjectStop.FIELD_STOP_NAME));
@@ -252,8 +252,6 @@ public class DataTransmutator {
         }
         osmStop.setTag(OSMEntity.KEY_NAME, stopName);
 
-        osmStop.setTag(OSMEntity.KEY_LATITUDE, stopData.getField(GTFSObjectStop.FIELD_STOP_LAT));
-        osmStop.setTag(OSMEntity.KEY_LONGITUDE, stopData.getField(GTFSObjectStop.FIELD_STOP_LON));
         String stopDescription = stopData.getField(GTFSObjectStop.FIELD_STOP_DESC);
         if(stopDescription != null && !stopDescription.isEmpty()) {
             osmStop.setTag(OSMEntity.KEY_DESCRIPTION, stopDescription);
@@ -267,7 +265,7 @@ public class DataTransmutator {
             osmStop.setTag(OSMEntity.KEY_WEBSITE, stopWebsite);
         }
 
-        osmRoute.addMember(osmStop, osmStop instanceof OSMStopPosition ? "stop" : "platform");
+        osmRoute.addMember(osmStop, OSMEntity.TAG_STOP_POSITION.equals(osmStop.getTag(OSMEntity.KEY_PUBLIC_TRANSPORT)) ? "stop" : "platform");
     }
 
 
@@ -298,5 +296,9 @@ public class DataTransmutator {
                 route.setTag(OSMEntity.KEY_DESCRIPTION, value);
             }
         }
+    }
+    public void outputToOSMXML(final String fileName) throws IOException {
+        outputEntitySpace.markAllEntitiesWithAction(OSMEntity.ChangeAction.none);
+        outputEntitySpace.outputXml(fileName);
     }
 }

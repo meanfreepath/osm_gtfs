@@ -2,6 +2,7 @@ package com.company.meanfreepathllc;
 
 import com.company.meanfreepathllc.GTFS.*;
 import com.company.meanfreepathllc.OSM.OSMEntity;
+import com.company.meanfreepathllc.OSM.OSMEntitySpace;
 import com.sun.javaws.exceptions.InvalidArgumentException;
 
 import java.io.FileNotFoundException;
@@ -51,14 +52,14 @@ public class Main {
 
             GTFSProcessor.outputEventLogs();
 
-            List<OSMEntity> wayList = new ArrayList<>();
+            //transmute the GTFS objects to OSM nodes/ways/relations
             final DataTransmutator export = new DataTransmutator(datasetName, datasetSource);
             for(GTFSObjectRoute route: GTFSObjectRoute.allRoutes) {
-                wayList.add(export.transmuteGTFSRoute(route));
+                export.transmuteGTFSRoute(route);
                 System.out.printf("Route %s has %d trips\n", route.getField(GTFSObjectRoute.FIELD_ROUTE_SHORT_NAME), route.trips.size());
             }
             System.out.println("Writing to file…");
-            OSMEntity.outputXml(wayList, GTFSProcessor.getBasePath() + "/routes.osm");
+            export.outputToOSMXML(GTFSProcessor.getBasePath() + "/routes.osm");
             System.out.println("Finished!");
 
         } catch (FileNotFoundException | IllegalAccessException | InstantiationException e) {
