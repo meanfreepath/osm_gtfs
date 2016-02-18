@@ -69,9 +69,11 @@ public class GTFSProcessor {
         }
         FileInputStream fStream = new FileInputStream(fp.getAbsoluteFile());
         BufferedReader in = new BufferedReader(new InputStreamReader(fStream));
+        int lineIndex = 1;
         while (in.ready()) {
             explodedLine = parseLine(in);
-            if(explodedLine == null) { //i.e. blank line
+            lineIndex++;
+            if(explodedLine == null || explodedLine.isEmpty() || explodedLine.get(0).isEmpty()) { //i.e. blank line
                 continue;
             }
 
@@ -127,7 +129,7 @@ public class GTFSProcessor {
      * @return
      * @throws IOException
      */
-    public static List<String> parseLine(Reader r) throws IOException {
+    public static List<String> parseLine(final Reader r) throws IOException {
         int ch = r.read();
         while (ch == '\r') {
             //ignore linefeed chars wherever, particularly just before end of file

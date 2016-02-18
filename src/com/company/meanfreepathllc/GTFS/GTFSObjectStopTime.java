@@ -6,6 +6,7 @@ import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Created by nick on 10/28/15.
@@ -77,5 +78,13 @@ public class GTFSObjectStopTime extends GTFSObject {
     @Override
     public String[] getRequiredFields() {
         return requiredFields;
+    }
+    @Override
+    public String toString() {
+        final StringBuilder str = new StringBuilder(fields.size() * 64);
+        for(final Map.Entry<String, String> entry : fields.entrySet()) {
+            str.append(entry.getKey()).append(": ").append(entry.getValue()).append('\n');
+        }
+        return str.toString();
     }
 }
