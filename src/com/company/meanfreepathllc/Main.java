@@ -12,7 +12,13 @@ import java.util.List;
 public class Main {
     public static void main(String[] args) throws InvalidArgumentException {
 
-        GTFSProcessor.setBasePath("/Users/nick/Downloads/1_gtfs/");
+        //GTFSProcessor.setBasePath("/Users/nick/Downloads/GTFS_OSM/1_gtfs/");
+        GTFSProcessor.setBasePath("/Users/nick/Downloads/GTFS_OSM/google_transit/");
+        //GTFSProcessor.setBasePath("/Users/nick/Downloads/GTFS_OSM/vancouver_gtfs/");
+        //GTFSProcessor.setBasePath("/Users/nick/Downloads/GTFS_OSM/gtfs_puget_sound_consolidated/");
+
+        final String datasetName = "KCGIS";
+        final String datasetSource = "King County GIS";
 
         try {
             System.out.print("Processing agencies...\n");
@@ -46,11 +52,8 @@ public class Main {
             GTFSProcessor.outputEventLogs();
 
             List<OSMEntity> wayList = new ArrayList<>();
-            DataTransmutator export = new DataTransmutator();
+            final DataTransmutator export = new DataTransmutator(datasetName, datasetSource);
             for(GTFSObjectRoute route: GTFSObjectRoute.allRoutes) {
-                /*if(route.getField(GTFSObjectRoute.FIELD_ROUTE_ID).equals("100151")) {
-                    wayList.add(export.transmuteGTFSRoute(route));
-                }*/
                 wayList.add(export.transmuteGTFSRoute(route));
                 System.out.printf("Route %s has %d trips\n", route.getField(GTFSObjectRoute.FIELD_ROUTE_SHORT_NAME), route.trips.size());
             }
