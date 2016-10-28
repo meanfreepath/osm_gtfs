@@ -202,7 +202,7 @@ public class DataTransmutator {
             tripRoute.addMember(shapeWay, OSMEntity.MEMBERSHIP_DEFAULT);
 
             //also compile the stops and add them to the relation
-            for(GTFSObjectTrip.StopTime stopTime: trip.stops.values()) {
+            for(GTFSObjectTrip.StopTime stopTime: trip.stops) {
                 processStopForRoute(stopTime.stop, routeData, tripRoute);
             }
 
@@ -372,7 +372,7 @@ public class DataTransmutator {
             //create an ordered list of the stops in the subroute
             for(final GTFSObjectTrip trip : tripsByDirection) {
                 final ArrayList<String> stopIds = new ArrayList<>(trip.stops.size());
-                for (final GTFSObjectTrip.StopTime stop : trip.stops.values()) {
+                for (final GTFSObjectTrip.StopTime stop : trip.stops) {
                     stopIds.add(stop.stop.getField(GTFSObjectStop.FIELD_STOP_ID));
                 }
                 routeStopIds.put(trip, stopIds);

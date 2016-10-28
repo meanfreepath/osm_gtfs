@@ -61,8 +61,7 @@ public class GTFSObjectTrip extends GTFSObject {
     public GTFSObjectRoute parentRoute;
     public GTFSObjectCalendar parentService;
     public GTFSObjectShape shape;
-    public final TreeMap<String, StopTime> stops = new TreeMap<>();
-    public final List<GTFSObjectStopTime> stopTimes = new ArrayList<>(INITIAL_CAPACITY_STOPS);
+    public final List<StopTime> stops = new ArrayList<>();
 
     public void addStopTime(final GTFSObjectStopTime stopTime) {
         final String stopId = stopTime.getField(GTFSObjectStopTime.FIELD_STOP_ID);
@@ -74,7 +73,7 @@ public class GTFSObjectTrip extends GTFSObject {
 
         //use a pared-down object to track the Stop and its order in this trip, to save memory over the relatively-heavy GTFSObjectStopTime object
         final StopTime stopSequence = new StopTime(stop, Short.parseShort(stopTime.getField(GTFSObjectStopTime.FIELD_STOP_SEQUENCE)));
-        stops.put(stopTime.getField(GTFSObjectStopTime.FIELD_STOP_SEQUENCE), stopSequence);
+        stops.add(stopSequence);
     }
 
     public GTFSObjectTrip() {
@@ -125,6 +124,9 @@ public class GTFSObjectTrip extends GTFSObject {
         } else {
             System.out.println("No shape for trip " + getField(FIELD_TRIP_ID));
         }
+
+        //ensure the stops are ordered by their stop_sequence field
+        Collections.sort(stops, stopTimeComparator);
 
         //add to the main trips list
         addToList();
