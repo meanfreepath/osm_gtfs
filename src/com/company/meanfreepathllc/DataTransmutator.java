@@ -43,7 +43,8 @@ public class DataTransmutator {
         }
     }
     private void setNameForTrip(final GTFSObjectRoute route, final GTFSObjectTrip trip, final OSMEntity tripEntity) {
-        final String name = route.getField(GTFSObjectRoute.FIELD_ROUTE_LONG_NAME);
+        //final String name = route.getField(GTFSObjectRoute.FIELD_ROUTE_LONG_NAME); // TriMet
+        final String name = trip.getField(GTFSObjectTrip.FIELD_TRIP_HEADSIGN); //King County Metro
         if(name != null && !name.isEmpty()) {
             tripEntity.setTag(OSMEntity.KEY_NAME, name);
         }
@@ -329,37 +330,53 @@ public class DataTransmutator {
      * @param allTrips
      */
     public void condenseSubRoutes(final List<GTFSObjectTrip> allTrips, final String tripGroupingField, final List<GTFSObjectTrip> uniqueTrips) {
-
-        final List<GTFSObjectTrip> uniqueTripsByField;
-        if(false&&tripGroupingField != null) {
-            final HashMap<String, GTFSObjectTrip> tripGrouping = new HashMap<>(8);
+        //first group the trips by their direction field, and the given grouping field (i.e. shape id), if any
+        final Map<Integer, Collection<GTFSObjectTrip>> uniqueTripsByDirection = new HashMap<>(2);
+        if(tripGroupingField != null) {
+            final HashMap<Integer, Map<String, GTFSObjectTrip>> tripGrouping = new HashMap<>(2);
             GTFSObjectTrip maxGroupTrip;
-            final String groupingFormat = "%d:%s";
-            String groupingId;
             for (GTFSObjectTrip trip : allTrips) {
                 if (trip.shape != null) {
-                    groupingId = String.format(groupingFormat, trip.direction.ordinal(), trip.getField(tripGroupingField));
-                    maxGroupTrip = tripGrouping.get(groupingId);
+                    Map<String, GTFSObjectTrip> tripsForDirection = tripGrouping.get(trip.direction.ordinal());
+                    if(tripsForDirection == null) {
+                        tripsForDirection = new HashMap<>(4);
+                        tripGrouping.put(trip.direction.ordinal(), tripsForDirection);
+                    }
+
+                    //groupingId = String.format(groupingFormat, trip.direction.ordinal(), trip.getField(tripGroupingField));
+                    maxGroupTrip = tripsForDirection.get(trip.getField(tripGroupingField));
                     if (maxGroupTrip == null || trip.shape.totalDistanceTraveled > maxGroupTrip.shape.totalDistanceTraveled) {
-                        tripGrouping.put(groupingId, trip);
+                        tripsForDirection.put(trip.getField(tripGroupingField), trip);
                     }
                 }
             }
-            uniqueTripsByField = new ArrayList<>(tripGrouping.values());
-        } else {
-            uniqueTripsByField = allTrips;
+
+            for(final Map.Entry<Integer, Map<String, GTFSObjectTrip>> tripsForDirection : tripGrouping.entrySet()) {
+                uniqueTripsByDirection.put(tripsForDirection.getKey(), tripsForDirection.getValue().values());
+            }
+        } else { //otherwise, just group by trip direction
+            for(final GTFSObjectTrip trip : allTrips) {
+                Collection<GTFSObjectTrip> tripsForDirection = uniqueTripsByDirection.get(trip.direction.ordinal());
+                if(tripsForDirection == null) {
+                    tripsForDirection = new ArrayList<>(4);
+                    uniqueTripsByDirection.put(trip.direction.ordinal(), tripsForDirection);
+                }
+                tripsForDirection.add(trip);
+            }
         }
 
 
         //Now add the subroutes to the importRoutes list - these are the subroutes that will be processed for matches
-        final Map<GTFSObjectTrip, List<String>> routeStopIds = new HashMap<>(uniqueTripsByField.size());
-        for(final GTFSObjectTrip trip : uniqueTripsByField) {
+        final Map<GTFSObjectTrip, List<String>> routeStopIds = new HashMap<>(uniqueTripsByDirection.size());
+        for(final Collection<GTFSObjectTrip> tripsByDirection : uniqueTripsByDirection.values()) {
             //create an ordered list of the stops in the subroute
-            final ArrayList<String> stopIds = new ArrayList<>(trip.stops.size());
-            for (final GTFSObjectTrip.StopTime stop : trip.stops.values()) {
-                stopIds.add(stop.stop.getField(GTFSObjectStop.FIELD_STOP_ID));
+            for(final GTFSObjectTrip trip : tripsByDirection) {
+                final ArrayList<String> stopIds = new ArrayList<>(trip.stops.size());
+                for (final GTFSObjectTrip.StopTime stop : trip.stops.values()) {
+                    stopIds.add(stop.stop.getField(GTFSObjectStop.FIELD_STOP_ID));
+                }
+                routeStopIds.put(trip, stopIds);
             }
-            routeStopIds.put(trip, stopIds);
         }
 
         //now create a list of the subroutes whose stops are the same (or are an ordered subset of) another subroute
