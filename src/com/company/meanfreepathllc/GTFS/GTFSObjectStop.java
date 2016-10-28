@@ -36,7 +36,6 @@ public class GTFSObjectStop extends GTFSObject {
     public final static String[] definedFields = {FIELD_STOP_ID, FIELD_STOP_CODE, FIELD_STOP_NAME, FIELD_STOP_DESC, FIELD_STOP_LAT, FIELD_STOP_LON, FIELD_ZONE_ID, FIELD_STOP_URL, FIELD_LOCATION_TYPE, FIELD_PARENT_STATION, FIELD_STOP_TIMEZONE, FIELD_WHEELCHAIR_BOARDING};
     public final static String[] requiredFields = {FIELD_STOP_ID, FIELD_STOP_NAME, FIELD_STOP_LAT, FIELD_STOP_LON};
 
-    public final static List<GTFSObjectStop> allStops = new ArrayList<>(INITIAL_CAPACITY);
     public final static HashMap<String, GTFSObjectStop> stopLookup = new HashMap<>(INITIAL_CAPACITY);
     public final List<GTFSObjectStopTime> stopTimes = new ArrayList<>(INITIAL_CAPACITY_STOP_TIME);
 
@@ -50,7 +49,6 @@ public class GTFSObjectStop extends GTFSObject {
     }
     @Override
     protected void addToList() {
-        allStops.add(this);
         stopLookup.put(getField(FIELD_STOP_ID), this);
     }
 
