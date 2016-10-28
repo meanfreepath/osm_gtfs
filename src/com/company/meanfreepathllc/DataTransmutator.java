@@ -5,9 +5,7 @@ import com.company.meanfreepathllc.OSM.*;
 import com.sun.javaws.exceptions.InvalidArgumentException;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -15,12 +13,55 @@ import java.util.regex.Pattern;
  * Created by nick on 10/29/15.
  */
 public class DataTransmutator {
-    private final static String KEY_GTFS_AGENCY_ID = "gtfs:agency_id", KEY_GTFS_DATASET_ID = "gtfs:dataset_id", KEY_GTFS_STOP_ID = "gtfs:stop_id", KEY_GTFS_ROUTE_ID = "gtfs:route_id", KEY_GTFS_TRIP_ID = "gtfs:trip_id", KEY_GTFS_SHAPE_ID = "gtfs:shape_id";
+    private final static String KEY_GTFS_AGENCY_ID = "gtfs:agency_id", KEY_GTFS_DATASET_ID = "gtfs:dataset_id", KEY_GTFS_STOP_ID = "gtfs:stop_id", KEY_GTFS_ROUTE_ID = "gtfs:route_id", GTFS_TRIP_MARKER = "gtfs:trip_marker", KEY_GTFS_SHAPE_ID = "gtfs:shape_id";
     private final static int INITIAL_CAPACITY = 262144;
     private final static String BAY_REGEX = "[ :-]* bay ([\\S\\d]+)";
     private final static Pattern bayPattern = Pattern.compile(BAY_REGEX, Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE | Pattern.UNICODE_CHARACTER_CLASS);
 
     public final String datasetId, datasetSource;
+
+    private void setRefForTrip(final GTFSObjectRoute route, final GTFSObjectTrip trip, final OSMEntity tripEntity) {
+        final String ref = route.getField(GTFSObjectRoute.FIELD_ROUTE_SHORT_NAME);
+        if(ref == null || ref.isEmpty()) {
+            return;
+        }
+
+        //express routes add an "X" to their ref tags
+        final String tripRef;
+        if("express".equalsIgnoreCase(ref)) {
+            tripRef = ref + "X";
+        } else {
+            tripRef = ref;
+        }
+
+        tripEntity.setTag(OSMEntity.KEY_REF, tripRef);
+    }
+    private void setRefForRoute(final GTFSObjectRoute route, final OSMEntity routeEntity) {
+        final String ref = route.getField(GTFSObjectRoute.FIELD_ROUTE_SHORT_NAME);
+        if(ref != null && !ref.isEmpty()) {
+            routeEntity.setTag(OSMEntity.KEY_REF, ref);
+        }
+    }
+    private void setNameForTrip(final GTFSObjectRoute route, final GTFSObjectTrip trip, final OSMEntity tripEntity) {
+        final String name = route.getField(GTFSObjectRoute.FIELD_ROUTE_LONG_NAME);
+        if(name != null && !name.isEmpty()) {
+            tripEntity.setTag(OSMEntity.KEY_NAME, name);
+        }
+    }
+    private void setNameForRoute(final GTFSObjectRoute route, final OSMEntity routeEntity) {
+        final String name = route.getField(GTFSObjectRoute.FIELD_ROUTE_LONG_NAME);
+
+        if(name != null && !name.isEmpty()) {
+            routeEntity.setTag(OSMEntity.KEY_NAME, name);
+        } else {
+            final String ref = routeEntity.getTag(OSMEntity.KEY_REF);
+            if(ref == null) {
+                routeEntity.setTag(OSMEntity.KEY_NAME, "UNKNOWN ROUTE NUMBER");
+            } else {
+                routeEntity.setTag(OSMEntity.KEY_NAME, "Route " + ref);
+            }
+        }
+    }
 
     /**
      * Tracks the GTFS entities that have been added to the OSM entity space, to avoid duplication
@@ -34,10 +75,10 @@ public class DataTransmutator {
         outputEntitySpace = new OSMEntitySpace(INITIAL_CAPACITY);
     }
 
-    private OSMWay transmuteGTFSTrip(GTFSObjectTrip tripData) {
+    private OSMWay transmuteGTFSTrip(final GTFSObjectTrip tripData, final OSMEntity tripEntity, final OSMEntity routeEntity) {
         final OSMWay shapeWay = outputEntitySpace.createWay(null, null);
       //  System.out.println("Trip " + tripData.getField(GTFSObjectTrip.FIELD_TRIP_ID) + ": " + tripData.fields.toString());
-        String tripRef = tripData.getField(GTFSObjectTrip.FIELD_TRIP_SHORT_NAME);
+        String tripRef = routeEntity.getTag(OSMEntity.KEY_REF);
         if(tripRef == null) {
             tripRef = tripData.getField(GTFSObjectTrip.FIELD_TRIP_ID);
         }
@@ -45,8 +86,8 @@ public class DataTransmutator {
         shapeWay.setTag(KEY_GTFS_DATASET_ID, datasetId);
         shapeWay.setTag(OSMEntity.KEY_SOURCE, datasetSource);
         shapeWay.setTag(KEY_GTFS_SHAPE_ID, tripData.getField(GTFSObjectTrip.FIELD_SHAPE_ID));
-        shapeWay.setTag(OSMEntity.KEY_REF, tripRef);
-        shapeWay.setTag(OSMEntity.KEY_NAME, tripData.getField(GTFSObjectTrip.FIELD_TRIP_HEADSIGN));
+        shapeWay.setTag(OSMEntity.KEY_REF, routeEntity.getTag(OSMEntity.KEY_REF) + ":" + tripRef);
+        shapeWay.setTag(OSMEntity.KEY_NAME, tripEntity.getTag(OSMEntity.KEY_NAME));
 
         for (final GTFSObjectShape.ShapePoint pt : tripData.shape.points) {
             shapeWay.appendNode(outputEntitySpace.createNode(pt.latitude, pt.longitude, null));
@@ -55,7 +96,7 @@ public class DataTransmutator {
         outputEntitySpace.addEntity(shapeWay, OSMEntity.TagMergeStrategy.keepTags, null);
         return shapeWay;
     }
-    public OSMRelation transmuteGTFSRoute(GTFSObjectRoute routeData) throws InvalidArgumentException {
+    public OSMRelation transmuteGTFSRoute(final GTFSObjectRoute routeData, final String tripGroupingField) throws InvalidArgumentException {
         final OSMRelation osmRouteMaster = outputEntitySpace.createRelation(null, null);
         OSMPresetFactory.makeRouteMaster(osmRouteMaster);
 
@@ -69,20 +110,11 @@ public class DataTransmutator {
         osmRouteMaster.setTag(KEY_GTFS_ROUTE_ID, routeData.getField(GTFSObjectRoute.FIELD_ROUTE_ID));
 
         //route_short_name
-        osmRouteMaster.setTag(OSMEntity.KEY_REF, routeData.getField(GTFSObjectRoute.FIELD_ROUTE_SHORT_NAME));
+        setRefForRoute(routeData, osmRouteMaster);
 
         //route_long_name
-        final String routeLongName = routeData.getField(GTFSObjectRoute.FIELD_ROUTE_LONG_NAME);
-        if(routeLongName != null && !routeLongName.isEmpty()) {
-            osmRouteMaster.setTag(OSMEntity.KEY_NAME, routeLongName);
-        } else {
-            final String ref = osmRouteMaster.getTag(OSMEntity.KEY_REF);
-            if(ref == null) {
-                osmRouteMaster.setTag(OSMEntity.KEY_NAME, "UNKNOWN ROUTE NUMBER");
-            } else {
-                osmRouteMaster.setTag(OSMEntity.KEY_NAME, "Route " + ref);
-            }
-        }
+        setNameForRoute(routeData, osmRouteMaster);
+
         //route_desc
         processRouteDesc(routeData.getField(GTFSObjectRoute.FIELD_ROUTE_DESC), osmRouteMaster);
 
@@ -142,52 +174,41 @@ public class DataTransmutator {
         }
 
         //now compile the relation members: first pick the longest trip in each direction
-        final HashMap<String, GTFSObjectTrip> tripsToUse = new HashMap<>(8);
-        GTFSObjectTrip maxGroupTrip;
-        final String groupingFormat = "%d:%s";
-        String groupingId;
-        for(GTFSObjectTrip trip: routeData.trips) {
-            if(trip.shape != null) {
-                groupingId = String.format(groupingFormat, trip.direction.ordinal(), trip.getField(GTFSObjectTrip.FIELD_TRIP_SHORT_NAME));
-                maxGroupTrip = tripsToUse.get(groupingId);
-                if(maxGroupTrip == null || trip.shape.totalDistanceTraveled > maxGroupTrip.shape.totalDistanceTraveled) {
-                    tripsToUse.put(groupingId, trip);
-                }
-            }
-        }
+        final List<GTFSObjectTrip> tripsToUse = new ArrayList<>(8);
+        condenseSubRoutes(routeData.trips, tripGroupingField, tripsToUse);
 
         //and add as members to the relation
         OSMRelation tripRoute;
         OSMWay shapeWay;
-        for(GTFSObjectTrip trip: tripsToUse.values()) {
-            if(trip.shape != null) {
-                //init the OSM route relation for the trip and set the tags as needed
-                tripRoute = outputEntitySpace.createRelation(null, null);
-                OSMPresetFactory.makeRoute(tripRoute);
-                tripRoute.setTag(KEY_GTFS_DATASET_ID, datasetId);
-                tripRoute.setTag(OSMEntity.KEY_SOURCE, datasetSource);
-                tripRoute.setTag(KEY_GTFS_TRIP_ID, trip.getField(GTFSObjectTrip.FIELD_TRIP_ID));
-                tripRoute.setTag(KEY_GTFS_ROUTE_ID, trip.getField(GTFSObjectTrip.FIELD_ROUTE_ID));
-                tripRoute.setTag(KEY_GTFS_SHAPE_ID, trip.getField(GTFSObjectTrip.FIELD_SHAPE_ID));
-                tripRoute.setTag(OSMEntity.KEY_NAME, trip.getField(GTFSObjectTrip.FIELD_TRIP_HEADSIGN));
-                tripRoute.setTag(OSMEntity.KEY_REF, osmRouteMaster.getTag(OSMEntity.KEY_REF));
-                tripRoute.setTag(OSMEntity.KEY_ROUTE, osmRouteMaster.getTag(OSMEntity.KEY_ROUTE_MASTER));
-                tripRoute.setTag(OSMEntity.KEY_OPERATOR, osmRouteMaster.getTag(OSMEntity.KEY_OPERATOR));
+        final String tripIdentifierFormat = "%s:%s";
+        for(GTFSObjectTrip trip: tripsToUse) {
+            //init the OSM route relation for the trip and set the tags as needed
+            tripRoute = outputEntitySpace.createRelation(null, null);
+            OSMPresetFactory.makeRoute(tripRoute);
+            tripRoute.setTag(KEY_GTFS_DATASET_ID, datasetId);
+            tripRoute.setTag(OSMEntity.KEY_SOURCE, datasetSource);
+            tripRoute.setTag(GTFS_TRIP_MARKER, String.format(tripIdentifierFormat, trip.getField(GTFSObjectTrip.FIELD_DIRECTION_ID), trip.getField(tripGroupingField)));
+            tripRoute.setTag(KEY_GTFS_ROUTE_ID, trip.getField(GTFSObjectTrip.FIELD_ROUTE_ID)); //debug only
+            tripRoute.setTag(KEY_GTFS_SHAPE_ID, trip.getField(GTFSObjectTrip.FIELD_SHAPE_ID));
+            setNameForTrip(routeData, trip, tripRoute);
+            setRefForTrip(routeData, trip, tripRoute);
+            tripRoute.setTag(OSMEntity.KEY_ROUTE, osmRouteMaster.getTag(OSMEntity.KEY_ROUTE_MASTER));
+            tripRoute.setTag(OSMEntity.KEY_OPERATOR, osmRouteMaster.getTag(OSMEntity.KEY_OPERATOR));
 
-                //add the shape (which details the path of the route) for later application to OSM highways
-                shapeWay = transmuteGTFSTrip(trip);
-                shapeWay.setTag(routeWayTags[0], routeWayTags[1]);
-                tripRoute.addMember(shapeWay, "");
+            //add the shape (which details the path of the route) for later application to OSM highways
+            shapeWay = transmuteGTFSTrip(trip, tripRoute, osmRouteMaster);
+            shapeWay.setTag(routeWayTags[0], routeWayTags[1]);
+            tripRoute.addMember(shapeWay, OSMEntity.MEMBERSHIP_DEFAULT);
 
-                //also compile the stops and add them to the relation
-                for(GTFSObjectStopTime stopTime: trip.stops) {
-                    processStopForRoute(stopTime.stop, routeData, tripRoute);
-                }
-
-                //and add the trip to the route master
-                osmRouteMaster.addMember(tripRoute, OSMEntity.MEMBERSHIP_DEFAULT);
+            //also compile the stops and add them to the relation
+            for(GTFSObjectTrip.StopTime stopTime: trip.stops.values()) {
+                processStopForRoute(stopTime.stop, routeData, tripRoute);
             }
+
+            //and add the trip to the route master
+            osmRouteMaster.addMember(tripRoute, OSMEntity.MEMBERSHIP_DEFAULT);
         }
+        //System.out.format("%d/%d/%d=%d entities in space", outputEntitySpace.allNodes.size(), outputEntitySpace.allWays.size(), outputEntitySpace.allRelations.size(), outputEntitySpace.allEntities.size());
         return osmRouteMaster;
     }
     private OSMNode createStopNode(final GTFSObjectStop gtfsObject) {
@@ -300,5 +321,114 @@ public class DataTransmutator {
     public void outputToOSMXML(final String fileName) throws IOException {
         outputEntitySpace.markAllEntitiesWithAction(OSMEntity.ChangeAction.none);
         outputEntitySpace.outputXml(fileName);
+    }
+
+    /**
+     * Condense the list of subroutes down, based on the stops they hit.  If a subroute's stops are an ordered subset
+     * of any other subroute, disregard the former subroute
+     * @param allTrips
+     */
+    public void condenseSubRoutes(final List<GTFSObjectTrip> allTrips, final String tripGroupingField, final List<GTFSObjectTrip> uniqueTrips) {
+
+        final List<GTFSObjectTrip> uniqueTripsByField;
+        if(false&&tripGroupingField != null) {
+            final HashMap<String, GTFSObjectTrip> tripGrouping = new HashMap<>(8);
+            GTFSObjectTrip maxGroupTrip;
+            final String groupingFormat = "%d:%s";
+            String groupingId;
+            for (GTFSObjectTrip trip : allTrips) {
+                if (trip.shape != null) {
+                    groupingId = String.format(groupingFormat, trip.direction.ordinal(), trip.getField(tripGroupingField));
+                    maxGroupTrip = tripGrouping.get(groupingId);
+                    if (maxGroupTrip == null || trip.shape.totalDistanceTraveled > maxGroupTrip.shape.totalDistanceTraveled) {
+                        tripGrouping.put(groupingId, trip);
+                    }
+                }
+            }
+            uniqueTripsByField = new ArrayList<>(tripGrouping.values());
+        } else {
+            uniqueTripsByField = allTrips;
+        }
+
+
+        //Now add the subroutes to the importRoutes list - these are the subroutes that will be processed for matches
+        final Map<GTFSObjectTrip, List<String>> routeStopIds = new HashMap<>(uniqueTripsByField.size());
+        for(final GTFSObjectTrip trip : uniqueTripsByField) {
+            //create an ordered list of the stops in the subroute
+            final ArrayList<String> stopIds = new ArrayList<>(trip.stops.size());
+            for (final GTFSObjectTrip.StopTime stop : trip.stops.values()) {
+                stopIds.add(stop.stop.getField(GTFSObjectStop.FIELD_STOP_ID));
+            }
+            routeStopIds.put(trip, stopIds);
+        }
+
+        //now create a list of the subroutes whose stops are the same (or are an ordered subset of) another subroute
+        final Map<GTFSObjectTrip, List<String>> stopIdDuplicates = new HashMap<>(routeStopIds.size());
+        int i = 0, j;
+        for(final Map.Entry<GTFSObjectTrip, List<String>> stopIds : routeStopIds.entrySet()) {
+            j = 0;
+            if(stopIdDuplicates.containsKey(stopIds.getKey())) { //don't process if already marked as a subset/dupe of other
+                //System.out.println(i + ":" + j + "::" + stopIds.getKey().osm_id + " already a duplicate OUTER");
+                i++;
+                continue;
+            }
+            for(final Map.Entry<GTFSObjectTrip, List<String>> otherStopIds : routeStopIds.entrySet()) {
+                if(stopIds.getValue() == otherStopIds.getValue()) { //don't compare equals!
+                    //System.out.println(i + ":" + j++ + " IS SAME");
+                    continue;
+                }
+                if(stopIdDuplicates.containsKey(otherStopIds.getKey())) { //don't process if already marked as a subset/dupe of other
+                    //System.out.println(i + ":" + j++ + "::" + stopIds.getKey().osm_id + " already a duplicate INNER");
+                    continue;
+                }
+
+                //if the stops in both sets are equal and in order, mark one of them as a duplicate
+                if(stopIds.getValue().equals(otherStopIds.getValue())) {
+                    //System.out.println(i + ":" + j++ + "::" + stopIds.getKey().osm_id + " is EQUAL to " + otherStopIds.getKey().osm_id);
+                    stopIdDuplicates.put(otherStopIds.getKey(), otherStopIds.getValue());
+                    continue;
+                }
+
+                //check if the otherStopIds array fully contains stopIds, including stop order
+                final List<String> mostStops, leastStops;
+                if(stopIds.getValue().size() > otherStopIds.getValue().size()) {
+                    mostStops = stopIds.getValue();
+                    leastStops = otherStopIds.getValue();
+                } else {
+                    mostStops = otherStopIds.getValue();
+                    leastStops = stopIds.getValue();
+                }
+                //initial containsAll() check (unordered)
+                if(mostStops.containsAll(leastStops)) {
+                    //also do an order check, by finding the common elements with retainAll() and comparing
+                    final List<String> commonElements = new ArrayList<>(mostStops);
+                    commonElements.retainAll(leastStops);
+
+                    //if the common elements .equals() the smaller array, it's an ordered subset and can be de-duped
+                    if(commonElements.equals(leastStops)) {
+                        if(mostStops == stopIds.getValue()) {
+                            stopIdDuplicates.put(otherStopIds.getKey(), otherStopIds.getValue());
+                            //System.out.println(i + ":" + j + "::" + otherStopIds.getKey().osm_id + " is DUPLICATE OF" + stopIds.getKey().osm_id);
+                        } else if (mostStops == otherStopIds.getValue()){
+                            stopIdDuplicates.put(stopIds.getKey(), stopIds.getValue());
+                            //System.out.println(i + ":" + j + "::" + stopIds.getKey().osm_id + " is DUPLICATE OF" + otherStopIds.getKey().osm_id);
+                            break; //bail since the outer item is no longer to be used
+                        }
+                    }
+                }
+                j++;
+            }
+            i++;
+        }
+
+        //now add the de-duplicated subroutes to the list to be processed
+        for(final Map.Entry<GTFSObjectTrip, List<String>> routeStops : routeStopIds.entrySet()) {
+            if(stopIdDuplicates.containsKey(routeStops.getKey())) {
+                // System.out.println("DUPED " + routeStops.getKey().osm_id + ": " + String.join(":", routeStops.getValue()));
+                continue;
+            }
+            //System.out.println("USING " + routeStops.getKey().osm_id + ": " + String.join(":", routeStops.getValue()));
+            uniqueTrips.add(routeStops.getKey());
+        }
     }
 }
