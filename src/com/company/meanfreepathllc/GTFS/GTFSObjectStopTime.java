@@ -33,8 +33,7 @@ public class GTFSObjectStopTime extends GTFSObject {
     public final static List<GTFSObjectStopTime> allStopTimes = new ArrayList<>(INITIAL_CAPACITY);
 
     public GTFSObjectStop stop;
-    public LocalTime arrival_time, departure_time;
-    public int stop_sequence;
+    //public LocalTime arrival_time, departure_time;
 
     public GTFSObjectStopTime() {
         fields = new HashMap<>(getDefinedFields().length);
@@ -51,20 +50,17 @@ public class GTFSObjectStopTime extends GTFSObject {
         //assign to the relevant trips and stops
         GTFSObjectTrip parentTrip = GTFSObjectTrip.tripLookup.get(getField(FIELD_TRIP_ID));
         stop = GTFSObjectStop.stopLookup.get(getField(FIELD_STOP_ID));
-        stop.addStopTime(this);
         parentTrip.addStopTime(this);
 
         //arrival_time = LocalTime.parse(getField(FIELD_ARRIVAL_TIME), TIME_FORMATTER);
         //departure_time = LocalTime.parse(getField(FIELD_DEPARTURE_TIME), TIME_FORMATTER);
-
-        stop_sequence = Integer.parseInt(getField(FIELD_STOP_SEQUENCE));
 
         addToList();
     }
 
     @Override
     protected void addToList() {
-        allStopTimes.add(this);
+        //allStopTimes.add(this);
        // stopTimeLookup.put(getField())
     }
     @Override

@@ -32,9 +32,9 @@ public class GTFSObjectTrip extends GTFSObject {
     public final static List<GTFSObjectTrip> allTrips = new ArrayList<>(INITIAL_CAPACITY);
     public final static HashMap<String, GTFSObjectTrip> tripLookup = new HashMap<>(INITIAL_CAPACITY);
 
-    private final static Comparator<GTFSObjectStopTime> stopTimeComparator = new Comparator<GTFSObjectStopTime>() {
+    private final static Comparator<StopTime> stopTimeComparator = new Comparator<StopTime>() {
         @Override
-        public int compare(GTFSObjectStopTime o1, GTFSObjectStopTime o2) {
+        public int compare(StopTime o1, StopTime o2) {
             if(o1.stop_sequence < o2.stop_sequence)  {
                 return -1;
             } else if(o1.stop_sequence > o2.stop_sequence) {
@@ -45,14 +45,36 @@ public class GTFSObjectTrip extends GTFSObject {
         }
     };
 
+    /**
+     * Simple object to map a stop to a sequence number
+     */
+    public class StopTime {
+        public final GTFSObjectStop stop;
+        public final short stop_sequence;
+        public StopTime(final GTFSObjectStop stop, final short stop_sequence) {
+            this.stop = stop;
+            this.stop_sequence = stop_sequence;
+        }
+    }
+
     public GTFSTripDirection direction;
     public GTFSObjectRoute parentRoute;
     public GTFSObjectCalendar parentService;
     public GTFSObjectShape shape;
-    public final List<GTFSObjectStopTime> stops = new ArrayList<>(INITIAL_CAPACITY_STOPS);
+    public final TreeMap<String, StopTime> stops = new TreeMap<>();
+    public final List<GTFSObjectStopTime> stopTimes = new ArrayList<>(INITIAL_CAPACITY_STOPS);
 
-    public void addStopTime(GTFSObjectStopTime stopTime) {
-        stops.add(stopTime);
+    public void addStopTime(final GTFSObjectStopTime stopTime) {
+        final String stopId = stopTime.getField(GTFSObjectStopTime.FIELD_STOP_ID);
+        final GTFSObjectStop stop = GTFSObjectStop.stopLookup.get(stopId);
+        if(stop == null) {
+            System.out.printf("Warn: stop id %s not found in lookup\n", stopId);
+            return;
+        }
+
+        //use a pared-down object to track the Stop and its order in this trip, to save memory over the relatively-heavy GTFSObjectStopTime object
+        final StopTime stopSequence = new StopTime(stop, Short.parseShort(stopTime.getField(GTFSObjectStopTime.FIELD_STOP_SEQUENCE)));
+        stops.put(stopTime.getField(GTFSObjectStopTime.FIELD_STOP_SEQUENCE), stopSequence);
     }
 
     public GTFSObjectTrip() {
@@ -103,9 +125,6 @@ public class GTFSObjectTrip extends GTFSObject {
         } else {
             System.out.println("No shape for trip " + getField(FIELD_TRIP_ID));
         }
-
-        //ensure the stops are ordered by their stop_sequence field
-        Collections.sort(stops, stopTimeComparator);
 
         //add to the main trips list
         addToList();
