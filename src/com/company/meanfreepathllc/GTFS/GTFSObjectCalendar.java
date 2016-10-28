@@ -26,6 +26,7 @@ public class GTFSObjectCalendar extends GTFSObject {
 
     public final static String[] definedFields = {FIELD_SERVICE_ID, FIELD_MONDAY, FIELD_TUESDAY, FIELD_WEDNESDAY, FIELD_THURSDAY, FIELD_FRIDAY, FIELD_SATURDAY, FIELD_SUNDAY, FIELD_START_DATE, FIELD_END_DATE};
     public final static String[] requiredFields = {FIELD_SERVICE_ID, FIELD_MONDAY, FIELD_TUESDAY, FIELD_WEDNESDAY, FIELD_THURSDAY, FIELD_FRIDAY, FIELD_SATURDAY, FIELD_SUNDAY};
+    public final static String GTFS_FILE_NAME = "calendar.txt";
 
     public final static List<GTFSObjectCalendar> allCalendars = new ArrayList<>(INITIAL_CAPACITY);
     public final static HashMap<String, GTFSObjectCalendar> calendarLookup = new HashMap<>(INITIAL_CAPACITY);
@@ -56,7 +57,7 @@ public class GTFSObjectCalendar extends GTFSObject {
     }
     @Override
     public String getFileName() {
-        return "calendar.txt";
+        return GTFS_FILE_NAME;
     }
     @Override
     public String[] getDefinedFields() {
