@@ -13,10 +13,11 @@ import java.util.regex.Pattern;
  * Created by nick on 10/29/15.
  */
 public class DataTransmutator {
-    private final static String KEY_GTFS_AGENCY_ID = "gtfs:agency_id", KEY_GTFS_DATASET_ID = "gtfs:dataset_id", KEY_GTFS_STOP_ID = "gtfs:stop_id", KEY_GTFS_ROUTE_ID = "gtfs:route_id", GTFS_TRIP_MARKER = "gtfs:trip_marker", KEY_GTFS_SHAPE_ID = "gtfs:shape_id";
+    private final static String KEY_GTFS_AGENCY_ID = "gtfs:agency_id", KEY_GTFS_DATASET_ID = "gtfs:dataset_id", KEY_GTFS_STOP_ID = "gtfs:stop_id", KEY_GTFS_ROUTE_ID = "gtfs:route_id", KEY_GTFS_TRIP_ID = "gtfs:trip_id", KEY_GTFS_TRIP_MARKER = "gtfs:trip_marker", KEY_GTFS_SHAPE_ID = "gtfs:shape_id";
     private final static int INITIAL_CAPACITY = 262144;
     private final static String BAY_REGEX = "[ :-]* bay ([\\S\\d]+)";
     private final static Pattern bayPattern = Pattern.compile(BAY_REGEX, Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE | Pattern.UNICODE_CHARACTER_CLASS);
+    private final static String TRIP_NAME_FORMAT = "Route %s: %s";
 
     public final String datasetId, datasetSource;
 
@@ -44,7 +45,7 @@ public class DataTransmutator {
     }
     private void setNameForTrip(final GTFSObjectRoute route, final GTFSObjectTrip trip, final OSMEntity tripEntity) {
         //final String name = route.getField(GTFSObjectRoute.FIELD_ROUTE_LONG_NAME); // TriMet
-        final String name = trip.getField(GTFSObjectTrip.FIELD_TRIP_HEADSIGN); //King County Metro
+        final String name = String.format(TRIP_NAME_FORMAT, route.getField(GTFSObjectRoute.FIELD_ROUTE_SHORT_NAME), trip.getField(GTFSObjectTrip.FIELD_TRIP_HEADSIGN)); //King County Metro
         if(name != null && !name.isEmpty()) {
             tripEntity.setTag(OSMEntity.KEY_NAME, name);
         }
@@ -65,7 +66,7 @@ public class DataTransmutator {
     }
 
     /**
-     * Tracks the GTFS entities that have been added to the OSM entity space, to avoid duplication
+     * Tracks the GTFS entities that have been added to the com.company.meanfreepathllc.OSM entity space, to avoid duplication
      */
     private final HashMap<Integer, OSMEntity> allGTFSEntities = new HashMap<>(INITIAL_CAPACITY);
     private final OSMEntitySpace outputEntitySpace;
@@ -76,7 +77,7 @@ public class DataTransmutator {
         outputEntitySpace = new OSMEntitySpace(INITIAL_CAPACITY);
     }
 
-    private OSMWay transmuteGTFSTrip(final GTFSObjectTrip tripData, final OSMEntity tripEntity, final OSMEntity routeEntity) {
+    private OSMWay transmuteGTFSTrip(final GTFSObjectTrip tripData, final OSMEntity tripEntity, final OSMEntity routeEntity, final String tripGroupingField) {
         final OSMWay shapeWay = outputEntitySpace.createWay(null, null);
       //  System.out.println("Trip " + tripData.getField(GTFSObjectTrip.FIELD_TRIP_ID) + ": " + tripData.fields.toString());
         String tripRef = routeEntity.getTag(OSMEntity.KEY_REF);
@@ -87,6 +88,7 @@ public class DataTransmutator {
         shapeWay.setTag(KEY_GTFS_DATASET_ID, datasetId);
         shapeWay.setTag(OSMEntity.KEY_SOURCE, datasetSource);
         shapeWay.setTag(KEY_GTFS_SHAPE_ID, tripData.getField(GTFSObjectTrip.FIELD_SHAPE_ID));
+        shapeWay.setTag(KEY_GTFS_TRIP_MARKER, generateTripMarker(tripData, tripGroupingField));
         shapeWay.setTag(OSMEntity.KEY_REF, routeEntity.getTag(OSMEntity.KEY_REF) + ":" + tripRef);
         shapeWay.setTag(OSMEntity.KEY_NAME, tripEntity.getTag(OSMEntity.KEY_NAME));
 
@@ -96,6 +98,10 @@ public class DataTransmutator {
 
         outputEntitySpace.addEntity(shapeWay, OSMEntity.TagMergeStrategy.keepTags, null);
         return shapeWay;
+    }
+    private static String generateTripMarker(final GTFSObjectTrip trip, final String tripGroupingField) {
+        final String tripIdentifierFormat = "%s:%s";
+        return String.format(tripIdentifierFormat, trip.getField(tripGroupingField), trip.getField(GTFSObjectTrip.FIELD_DIRECTION_ID));
     }
     public OSMRelation transmuteGTFSRoute(final GTFSObjectRoute routeData, final String tripGroupingField) throws InvalidArgumentException {
         final OSMRelation osmRouteMaster = outputEntitySpace.createRelation(null, null);
@@ -188,16 +194,17 @@ public class DataTransmutator {
             OSMPresetFactory.makeRoute(tripRoute);
             tripRoute.setTag(KEY_GTFS_DATASET_ID, datasetId);
             tripRoute.setTag(OSMEntity.KEY_SOURCE, datasetSource);
-            tripRoute.setTag(GTFS_TRIP_MARKER, String.format(tripIdentifierFormat, trip.getField(GTFSObjectTrip.FIELD_DIRECTION_ID), trip.getField(tripGroupingField)));
-            tripRoute.setTag(KEY_GTFS_ROUTE_ID, trip.getField(GTFSObjectTrip.FIELD_ROUTE_ID)); //debug only
-            tripRoute.setTag(KEY_GTFS_SHAPE_ID, trip.getField(GTFSObjectTrip.FIELD_SHAPE_ID));
+            tripRoute.setTag(KEY_GTFS_TRIP_MARKER, generateTripMarker(trip, tripGroupingField));
+            tripRoute.setTag(KEY_GTFS_AGENCY_ID, routeData.agency.getField(GTFSObjectAgency.FIELD_AGENCY_ID));
+            tripRoute.setTag(KEY_GTFS_TRIP_ID, trip.getField(GTFSObjectTrip.FIELD_TRIP_ID));
+            //tripRoute.setTag(KEY_GTFS_SHAPE_ID, trip.getField(GTFSObjectTrip.FIELD_SHAPE_ID)); //debug only
             setNameForTrip(routeData, trip, tripRoute);
             setRefForTrip(routeData, trip, tripRoute);
             tripRoute.setTag(OSMEntity.KEY_ROUTE, osmRouteMaster.getTag(OSMEntity.KEY_ROUTE_MASTER));
             tripRoute.setTag(OSMEntity.KEY_OPERATOR, osmRouteMaster.getTag(OSMEntity.KEY_OPERATOR));
 
             //add the shape (which details the path of the route) for later application to OSM highways
-            shapeWay = transmuteGTFSTrip(trip, tripRoute, osmRouteMaster);
+            shapeWay = transmuteGTFSTrip(trip, tripRoute, osmRouteMaster, tripGroupingField);
             shapeWay.setTag(routeWayTags[0], routeWayTags[1]);
             tripRoute.addMember(shapeWay, OSMEntity.MEMBERSHIP_DEFAULT);
 
