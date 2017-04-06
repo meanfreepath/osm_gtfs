@@ -31,7 +31,7 @@ public class GTFSObjectCalendarDate extends GTFSObject {
     }
 
     @Override
-    public void postProcess() throws InvalidArgumentException {
+    public void postProcess(GTFSDataset dataset) throws InvalidArgumentException {
         List<String> missingFields = checkRequiredFields();
         if(missingFields != null && missingFields.size() > 0) {
             String[] errMsg = {""};
@@ -51,13 +51,11 @@ public class GTFSObjectCalendarDate extends GTFSObject {
 
 
         //add to the main calendar list
-        addToList();
+        addToList(dataset);
     }
-
-    @Override
-    protected void addToList() {
+    private void addToList(GTFSDataset dataset) {
         final String serviceId = getField(FIELD_SERVICE_ID), serviceDate = getField(FIELD_DATE);
-        GTFSObjectCalendar calendar = GTFSObjectCalendar.calendarLookup.get(serviceId);
+        GTFSObjectCalendar calendar = dataset.calendarLookup.get(serviceId);
         if(calendar == null) {
             //initialize the GTFS calendar object with default values
             calendar = new GTFSObjectCalendar();
@@ -72,8 +70,8 @@ public class GTFSObjectCalendarDate extends GTFSObject {
             calendar.setField(GTFSObjectCalendar.FIELD_SATURDAY, "0");
             calendar.setField(GTFSObjectCalendar.FIELD_SUNDAY, "0");
 
-            GTFSObjectCalendar.allCalendars.add(calendar);
-            GTFSObjectCalendar.calendarLookup.put(serviceId, calendar);
+            dataset.allCalendars.add(calendar);
+            dataset.calendarLookup.put(serviceId, calendar);
         } else {
             if(calendar.getField(GTFSObjectCalendar.FIELD_START_DATE).compareTo(serviceDate) > 0) {
                 calendar.setField(GTFSObjectCalendar.FIELD_START_DATE, serviceDate);

@@ -39,7 +39,7 @@ public class GTFSObjectStopTime extends GTFSObject {
         fields = new HashMap<>(getDefinedFields().length);
     }
     @Override
-    public void postProcess() throws InvalidArgumentException {
+    public void postProcess(GTFSDataset dataset) throws InvalidArgumentException {
         List<String> missingFields = checkRequiredFields();
         if(missingFields != null && missingFields.size() > 0) {
             String[] errMsg = {""};
@@ -48,20 +48,15 @@ public class GTFSObjectStopTime extends GTFSObject {
         }
 
         //assign to the relevant trips and stops
-        GTFSObjectTrip parentTrip = GTFSObjectTrip.tripLookup.get(getField(FIELD_TRIP_ID));
-        stop = GTFSObjectStop.stopLookup.get(getField(FIELD_STOP_ID));
-        parentTrip.addStopTime(this);
+        GTFSObjectTrip parentTrip = dataset.tripLookup.get(getField(FIELD_TRIP_ID));
+        stop = dataset.stopLookup.get(getField(FIELD_STOP_ID));
+        parentTrip.addStopTime(this, dataset);
 
         //arrival_time = LocalTime.parse(getField(FIELD_ARRIVAL_TIME), TIME_FORMATTER);
         //departure_time = LocalTime.parse(getField(FIELD_DEPARTURE_TIME), TIME_FORMATTER);
 
-        addToList();
-    }
-
-    @Override
-    protected void addToList() {
-        //allStopTimes.add(this);
-       // stopTimeLookup.put(getField())
+        /*dataset.allStopTimes.add(this);
+        dataset.stopTimeLookup.put(getField());*/
     }
     @Override
     public String getFileName() {

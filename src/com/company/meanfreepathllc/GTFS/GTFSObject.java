@@ -40,11 +40,10 @@ public abstract class GTFSObject {
         nonstandardFields.put(fieldName, value.trim());
     }
 
-    public abstract void postProcess() throws InvalidArgumentException;
+    public abstract void postProcess(GTFSDataset dataset) throws InvalidArgumentException;
     public abstract String getFileName();
     public abstract String[] getDefinedFields();
     public abstract String[] getRequiredFields();
-    protected abstract void addToList();
 
     protected final List<String> checkRequiredFields() {
         List<String> missingFields = null;

@@ -29,9 +29,6 @@ public class GTFSObjectTrip extends GTFSObject {
     public final static String[] definedFields = {FIELD_ROUTE_ID, FIELD_SERVICE_ID, FIELD_TRIP_ID, FIELD_TRIP_SHORT_NAME, FIELD_TRIP_HEADSIGN, FIELD_DIRECTION_ID, FIELD_BLOCK_ID, FIELD_SHAPE_ID, FIELD_WHEELCHAIR_ACCESSIBLE, FIELD_BIKES_ALLOWED};
     public final static String[] requiredFields = {FIELD_ROUTE_ID, FIELD_SERVICE_ID, FIELD_TRIP_ID};
 
-    public final static List<GTFSObjectTrip> allTrips = new ArrayList<>(INITIAL_CAPACITY);
-    public final static HashMap<String, GTFSObjectTrip> tripLookup = new HashMap<>(INITIAL_CAPACITY);
-
     private final static Comparator<StopTime> stopTimeComparator = new Comparator<StopTime>() {
         @Override
         public int compare(StopTime o1, StopTime o2) {
@@ -63,9 +60,9 @@ public class GTFSObjectTrip extends GTFSObject {
     public GTFSObjectShape shape;
     public final List<StopTime> stops = new ArrayList<>();
 
-    public void addStopTime(final GTFSObjectStopTime stopTime) {
+    public void addStopTime(final GTFSObjectStopTime stopTime, final GTFSDataset dataset) {
         final String stopId = stopTime.getField(GTFSObjectStopTime.FIELD_STOP_ID);
-        final GTFSObjectStop stop = GTFSObjectStop.stopLookup.get(stopId);
+        final GTFSObjectStop stop = dataset.stopLookup.get(stopId);
         if(stop == null) {
             System.out.printf("Warn: stop id %s not found in lookup\n", stopId);
             return;
@@ -79,14 +76,9 @@ public class GTFSObjectTrip extends GTFSObject {
     public GTFSObjectTrip() {
         fields = new HashMap<>(getDefinedFields().length);
     }
-    @Override
-    protected void addToList() {
-        allTrips.add(this);
-        tripLookup.put(getField(FIELD_TRIP_ID), this);
-    }
 
     @Override
-    public void postProcess() throws InvalidArgumentException {
+    public void postProcess(GTFSDataset dataset) throws InvalidArgumentException {
         List<String> missingFields = checkRequiredFields();
         if(missingFields != null && missingFields.size() > 0) {
             String[] errMsg = {""};
@@ -107,8 +99,8 @@ public class GTFSObjectTrip extends GTFSObject {
                 direction = GTFSTripDirection.directionNone;
                 break;
         }
-        parentRoute = GTFSObjectRoute.routeLookup.get(getField(FIELD_ROUTE_ID));
-        parentService = GTFSObjectCalendar.calendarLookup.get(getField(FIELD_SERVICE_ID));
+        parentRoute = dataset.routeLookup.get(getField(FIELD_ROUTE_ID));
+        parentService = dataset.calendarLookup.get(getField(FIELD_SERVICE_ID));
         parentRoute.addTrip(this);
 
         if(parentRoute == null) {
@@ -120,7 +112,7 @@ public class GTFSObjectTrip extends GTFSObject {
 
         String shapeId = getField(FIELD_SHAPE_ID);
         if(shapeId != null) {
-            shape = GTFSObjectShape.shapeLookup.get(shapeId);
+            shape = dataset.shapeLookup.get(shapeId);
         } else {
             System.out.println("No shape for trip " + getField(FIELD_TRIP_ID));
         }
@@ -129,7 +121,8 @@ public class GTFSObjectTrip extends GTFSObject {
         Collections.sort(stops, stopTimeComparator);
 
         //add to the main trips list
-        addToList();
+        dataset.allTrips.add(this);
+        dataset.tripLookup.put(getField(FIELD_TRIP_ID), this);
     }
 
     @Override

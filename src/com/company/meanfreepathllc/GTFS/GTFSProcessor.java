@@ -12,15 +12,7 @@ import java.util.Vector;
  * Created by nick on 10/15/15.
  */
 public class GTFSProcessor {
-    protected static String basePath;
     public final static List<LogEvent> eventLog = new ArrayList<>(1024);
-
-    public static String getBasePath() {
-        return basePath;
-    }
-    public static void setBasePath(String path) {
-        basePath = path;
-    }
 
     private static int curLineNumber;
     private static String curFileName;
@@ -50,7 +42,7 @@ public class GTFSProcessor {
             System.out.println(event.fileName + "(line " + event.lineNumber + "): " +  event.eventLevel.toString() + ": " + event.message);
         }
     }
-    public static void processData(Class<? extends GTFSObject> objectClass) throws IOException, IllegalAccessException, InstantiationException {
+    public static void processData(Class<? extends GTFSObject> objectClass, GTFSDataset dataset) throws IOException, IllegalAccessException, InstantiationException {
         GTFSObject dataObject;
         List<String> explodedLine;
         short colIdx;
@@ -63,7 +55,7 @@ public class GTFSProcessor {
         final HashMap<Short, String> gtfsColumnIndices = new HashMap<>(definedFields.length);
         final HashMap<Short, String> gtfsColumnIndicesNonStandard = new HashMap<>();
 
-        File fp = new File(basePath + curFileName);
+        File fp = new File(dataset.basePath + curFileName);
         if(!fp.exists()) {
             throw new FileNotFoundException("No " + curFileName + " file found in directory!");
         }
@@ -115,7 +107,7 @@ public class GTFSProcessor {
                     }
                     colIdx++;
                 }
-                dataObject.postProcess();
+                dataObject.postProcess(dataset);
             } catch (InstantiationException | IllegalAccessException | InvalidArgumentException e) {
                 e.printStackTrace();
             }

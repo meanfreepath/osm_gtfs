@@ -28,14 +28,11 @@ public class GTFSObjectCalendar extends GTFSObject {
     public final static String[] requiredFields = {FIELD_SERVICE_ID, FIELD_MONDAY, FIELD_TUESDAY, FIELD_WEDNESDAY, FIELD_THURSDAY, FIELD_FRIDAY, FIELD_SATURDAY, FIELD_SUNDAY};
     public final static String GTFS_FILE_NAME = "calendar.txt";
 
-    public final static List<GTFSObjectCalendar> allCalendars = new ArrayList<>(INITIAL_CAPACITY);
-    public final static HashMap<String, GTFSObjectCalendar> calendarLookup = new HashMap<>(INITIAL_CAPACITY);
-
     public GTFSObjectCalendar() {
         fields = new HashMap<>(getDefinedFields().length);
     }
     @Override
-    public void postProcess() throws InvalidArgumentException {
+    public void postProcess(GTFSDataset dataset) throws InvalidArgumentException {
         List<String> missingFields = checkRequiredFields();
         if(missingFields != null && missingFields.size() > 0) {
             String[] errMsg = {""};
@@ -47,14 +44,10 @@ public class GTFSObjectCalendar extends GTFSObject {
 
 
         //add to the main calendar list
-        addToList();
+        dataset.allCalendars.add(this);
+        dataset.calendarLookup.put(getField(FIELD_SERVICE_ID), this);
     }
 
-    @Override
-    protected void addToList() {
-        allCalendars.add(this);
-        calendarLookup.put(getField(FIELD_SERVICE_ID), this);
-    }
     @Override
     public String getFileName() {
         return GTFS_FILE_NAME;

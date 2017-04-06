@@ -36,20 +36,14 @@ public class GTFSObjectStop extends GTFSObject {
     public final static String[] definedFields = {FIELD_STOP_ID, FIELD_STOP_CODE, FIELD_STOP_NAME, FIELD_STOP_DESC, FIELD_STOP_LAT, FIELD_STOP_LON, FIELD_ZONE_ID, FIELD_STOP_URL, FIELD_LOCATION_TYPE, FIELD_PARENT_STATION, FIELD_STOP_TIMEZONE, FIELD_WHEELCHAIR_BOARDING};
     public final static String[] requiredFields = {FIELD_STOP_ID, FIELD_STOP_NAME, FIELD_STOP_LAT, FIELD_STOP_LON};
 
-    public final static HashMap<String, GTFSObjectStop> stopLookup = new HashMap<>(INITIAL_CAPACITY);
-
     public Point coordinate;
 
     public GTFSObjectStop() {
         fields = new HashMap<>(getDefinedFields().length);
     }
-    @Override
-    protected void addToList() {
-        stopLookup.put(getField(FIELD_STOP_ID), this);
-    }
 
     @Override
-    public void postProcess() throws InvalidArgumentException {
+    public void postProcess(GTFSDataset dataset) throws InvalidArgumentException {
         List<String> missingFields = checkRequiredFields();
         if(missingFields != null && missingFields.size() > 0) {
             String[] errMsg = {""};
@@ -61,7 +55,7 @@ public class GTFSObjectStop extends GTFSObject {
         coordinate = new Point(fields.get(FIELD_STOP_LAT), fields.get(FIELD_STOP_LON));
 
         //add to the main stops list
-        addToList();
+        dataset.stopLookup.put(getField(FIELD_STOP_ID), this);
     }
     @Override
     public String getFileName() {

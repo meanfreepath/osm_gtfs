@@ -23,9 +23,6 @@ public class GTFSObjectShape extends GTFSObject {
     public final static String[] definedFields = {FIELD_SHAPE_ID, FIELD_SHAPE_PT_LAT, FIELD_SHAPE_PT_LON, FIELD_SHAPE_PT_SEQUENCE, FIELD_SHAPE_DIST_TRAVELED};
     public final static String[] requiredFields = {FIELD_SHAPE_ID, FIELD_SHAPE_PT_LAT, FIELD_SHAPE_PT_LON, FIELD_SHAPE_PT_SEQUENCE};
 
-    public final static List<GTFSObjectShape> allShapes = new ArrayList<>(INITIAL_CAPACITY);
-    public final static HashMap<String, GTFSObjectShape> shapeLookup = new HashMap<>(INITIAL_CAPACITY);
-
     public class ShapePoint extends Point{
         public double distanceTraveled;
         public int sequence;
@@ -44,7 +41,7 @@ public class GTFSObjectShape extends GTFSObject {
         fields = new HashMap<>(getDefinedFields().length);
     }
     @Override
-    public void postProcess() throws InvalidArgumentException {
+    public void postProcess(GTFSDataset dataset) throws InvalidArgumentException {
         List<String> missingFields = checkRequiredFields();
         if(missingFields != null && missingFields.size() > 0) {
             String[] errMsg = {""};
@@ -53,7 +50,7 @@ public class GTFSObjectShape extends GTFSObject {
         }
 
         //first check if there's an existing shape with this id.
-        GTFSObjectShape exShape = shapeLookup.get(getField(FIELD_SHAPE_ID));
+        GTFSObjectShape exShape = dataset.shapeLookup.get(getField(FIELD_SHAPE_ID));
         if(exShape != null) { //if so, add this shape's point data to it and bail (this object to be discarded)
             exShape.addPointFromShape(this);
         } else { //if not, this shape can be added to the main list
@@ -63,7 +60,8 @@ public class GTFSObjectShape extends GTFSObject {
             addPointFromShape(this);
 
             //and add to the main shape list
-            addToList();
+            dataset.allShapes.add(this);
+            dataset.shapeLookup.put(getField(FIELD_SHAPE_ID), this);
         }
     }
     public void addPointFromShape(GTFSObjectShape shape) {
@@ -78,11 +76,6 @@ public class GTFSObjectShape extends GTFSObject {
         points.add(new ShapePoint(shape.getField(FIELD_SHAPE_PT_LAT), shape.getField(FIELD_SHAPE_PT_LON), shape.getField(FIELD_SHAPE_PT_SEQUENCE), distanceTraveled));
     }
 
-    @Override
-    protected void addToList() {
-        allShapes.add(this);
-        shapeLookup.put(getField(FIELD_SHAPE_ID), this);
-    }
     @Override
     public String getFileName() {
         return "shapes.txt";

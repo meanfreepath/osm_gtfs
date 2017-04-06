@@ -40,9 +40,6 @@ public class GTFSObjectRoute extends GTFSObject {
     public final static String[] definedFields = {FIELD_ROUTE_ID, FIELD_AGENCY_ID, FIELD_ROUTE_SHORT_NAME, FIELD_ROUTE_LONG_NAME, FIELD_ROUTE_DESC, FIELD_ROUTE_TYPE, FIELD_ROUTE_URL, FIELD_ROUTE_COLOR, FIELD_ROUTE_TEXT_COLOR};
     public final static String[] requiredFields = {FIELD_ROUTE_ID, FIELD_ROUTE_SHORT_NAME, FIELD_ROUTE_LONG_NAME, FIELD_ROUTE_TYPE};
 
-    public final static List<GTFSObjectRoute> allRoutes = new ArrayList<>(INITIAL_CAPACITY);
-    public final static HashMap<String, GTFSObjectRoute> routeLookup = new HashMap<>(INITIAL_CAPACITY);
-
     public GTFSRouteType routeType;
     public GTFSObjectAgency agency;
 
@@ -60,7 +57,7 @@ public class GTFSObjectRoute extends GTFSObject {
         trips.add(trip);
     }
     @Override
-    public void postProcess() throws InvalidArgumentException {
+    public void postProcess(GTFSDataset dataset) throws InvalidArgumentException {
         List<String> missingFields = checkRequiredFields();
         if(missingFields != null && missingFields.size() > 0) {
             String[] errMsg = {""};
@@ -101,18 +98,14 @@ public class GTFSObjectRoute extends GTFSObject {
                 throw new InvalidArgumentException(errMsg);
         }
 
-        agency = GTFSObjectAgency.lookupAgencyById(fields.get(FIELD_AGENCY_ID));
+        agency = dataset.lookupAgencyById(fields.get(FIELD_AGENCY_ID));
         if(agency == null) {
             GTFSProcessor.logEvent(GTFSProcessor.LogLevel.warn, "No agency defined for route id \"" + getField(FIELD_ROUTE_ID) + "\": this is an error with the GTFS dataset.");
         }
 
         //add to the main route list
-        addToList();
-    }
-    @Override
-    protected void addToList() {
-        allRoutes.add(this);
-        routeLookup.put(getField(FIELD_ROUTE_ID), this);
+        dataset.allRoutes.add(this);
+        dataset.routeLookup.put(getField(FIELD_ROUTE_ID), this);
     }
     @Override
     public String getFileName() {
