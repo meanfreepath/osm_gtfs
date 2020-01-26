@@ -1,7 +1,5 @@
 package com.company.meanfreepathllc.GTFS;
 
-import com.sun.javaws.exceptions.InvalidArgumentException;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -25,7 +23,7 @@ public abstract class GTFSObject {
         internalId = --internalIdValue;
     }
     public String getField(String name) {
-        return fields.get(name);
+        return fields.getOrDefault(name, "");
     }
     public void setField(String fieldName, String value) {
         fields.put(fieldName, value.trim());
@@ -40,7 +38,7 @@ public abstract class GTFSObject {
         nonstandardFields.put(fieldName, value.trim());
     }
 
-    public abstract void postProcess(GTFSDataset dataset) throws InvalidArgumentException;
+    public abstract void postProcess(GTFSDataset dataset) throws IllegalArgumentException;
     public abstract String getFileName();
     public abstract String[] getDefinedFields();
     public abstract String[] getRequiredFields();

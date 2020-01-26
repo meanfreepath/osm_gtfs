@@ -1,7 +1,5 @@
 package com.company.meanfreepathllc.GTFS;
 
-import com.sun.javaws.exceptions.InvalidArgumentException;
-
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
@@ -31,12 +29,10 @@ public class GTFSObjectCalendarDate extends GTFSObject {
     }
 
     @Override
-    public void postProcess(GTFSDataset dataset) throws InvalidArgumentException {
+    public void postProcess(GTFSDataset dataset) throws IllegalArgumentException {
         List<String> missingFields = checkRequiredFields();
         if(missingFields != null && missingFields.size() > 0) {
-            String[] errMsg = {""};
-            errMsg[0] = String.format("Missing the following fields: %s", String.join(", ", missingFields));
-            throw new InvalidArgumentException(errMsg);
+            throw new IllegalArgumentException(String.format("Missing the following fields: %s", String.join(", ", missingFields)));
         }
         try {
             date = DATE_PARSER.parse(getField(FIELD_DATE));

@@ -1,7 +1,5 @@
 package com.company.meanfreepathllc.GTFS;
 
-import com.sun.javaws.exceptions.InvalidArgumentException;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -48,21 +46,17 @@ public class GTFSObjectRoute extends GTFSObject {
     public GTFSObjectRoute() {
         fields = new HashMap<>(getDefinedFields().length);
     }
-    public void addTrip(GTFSObjectTrip trip) throws InvalidArgumentException {
+    public void addTrip(GTFSObjectTrip trip) throws IllegalArgumentException {
         if(!trip.getField(GTFSObjectTrip.FIELD_ROUTE_ID).equals(getField(FIELD_ROUTE_ID))) {
-            String[] errMsg = {""};
-            errMsg[0] = String.format("Trip id %s doesn’t match Route id %s", trip.getField(GTFSObjectTrip.FIELD_ROUTE_ID), getField(FIELD_ROUTE_ID));
-            throw new InvalidArgumentException(errMsg);
+            throw new IllegalArgumentException(String.format("Trip id %s doesn’t match Route id %s", trip.getField(GTFSObjectTrip.FIELD_ROUTE_ID), getField(FIELD_ROUTE_ID)));
         }
         trips.add(trip);
     }
     @Override
-    public void postProcess(GTFSDataset dataset) throws InvalidArgumentException {
+    public void postProcess(GTFSDataset dataset) throws IllegalArgumentException {
         List<String> missingFields = checkRequiredFields();
         if(missingFields != null && missingFields.size() > 0) {
-            String[] errMsg = {""};
-            errMsg[0] = String.format("Missing the following fields: %s", String.join(", ", missingFields));
-            throw new InvalidArgumentException(errMsg);
+            throw new IllegalArgumentException(String.format("Missing the following fields: %s", String.join(", ", missingFields)));
         }
 
         //now add any processed values
@@ -94,8 +88,7 @@ public class GTFSObjectRoute extends GTFSObject {
                 routeType = GTFSRouteType.funicular;
                 break;
             default:
-                String[] errMsg = {"Invalid route type " + rawRouteType};
-                throw new InvalidArgumentException(errMsg);
+                throw new IllegalArgumentException("Invalid route type " + rawRouteType);
         }
 
         agency = dataset.lookupAgencyById(fields.get(FIELD_AGENCY_ID));

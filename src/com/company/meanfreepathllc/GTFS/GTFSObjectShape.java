@@ -1,7 +1,6 @@
 package com.company.meanfreepathllc.GTFS;
 
-import com.company.meanfreepathllc.SpatialTypes.Point;
-import com.sun.javaws.exceptions.InvalidArgumentException;
+import com.company.meanfreepathllc.OSM.Point;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -23,11 +22,11 @@ public class GTFSObjectShape extends GTFSObject {
     public final static String[] definedFields = {FIELD_SHAPE_ID, FIELD_SHAPE_PT_LAT, FIELD_SHAPE_PT_LON, FIELD_SHAPE_PT_SEQUENCE, FIELD_SHAPE_DIST_TRAVELED};
     public final static String[] requiredFields = {FIELD_SHAPE_ID, FIELD_SHAPE_PT_LAT, FIELD_SHAPE_PT_LON, FIELD_SHAPE_PT_SEQUENCE};
 
-    public class ShapePoint extends Point{
+    public static class ShapePoint extends Point {
         public double distanceTraveled;
         public int sequence;
 
-        public ShapePoint(String lat, String lon, String seq, double dist) {
+        ShapePoint(String lat, String lon, String seq, double dist) {
             super(lat, lon);
             sequence = Integer.parseInt(seq);
             distanceTraveled = dist;
@@ -41,12 +40,10 @@ public class GTFSObjectShape extends GTFSObject {
         fields = new HashMap<>(getDefinedFields().length);
     }
     @Override
-    public void postProcess(GTFSDataset dataset) throws InvalidArgumentException {
+    public void postProcess(GTFSDataset dataset) throws IllegalArgumentException {
         List<String> missingFields = checkRequiredFields();
         if(missingFields != null && missingFields.size() > 0) {
-            String[] errMsg = {""};
-            errMsg[0] = String.format("Missing the following fields: %s", String.join(", ", missingFields));
-            throw new InvalidArgumentException(errMsg);
+            throw new IllegalArgumentException(String.format("Missing the following fields: %s", String.join(", ", missingFields)));
         }
 
         //first check if there's an existing shape with this id.

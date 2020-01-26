@@ -1,7 +1,5 @@
 package com.company.meanfreepathllc.GTFS;
 
-import com.sun.javaws.exceptions.InvalidArgumentException;
-
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -32,12 +30,10 @@ public class GTFSObjectCalendar extends GTFSObject {
         fields = new HashMap<>(getDefinedFields().length);
     }
     @Override
-    public void postProcess(GTFSDataset dataset) throws InvalidArgumentException {
+    public void postProcess(GTFSDataset dataset) throws IllegalArgumentException {
         List<String> missingFields = checkRequiredFields();
         if(missingFields != null && missingFields.size() > 0) {
-            String[] errMsg = {""};
-            errMsg[0] = String.format("Missing the following fields: %s", String.join(", ", missingFields));
-            throw new InvalidArgumentException(errMsg);
+            throw new IllegalArgumentException(String.format("Missing the following fields: %s", String.join(", ", missingFields)));
         }
 
         //process any other fields
