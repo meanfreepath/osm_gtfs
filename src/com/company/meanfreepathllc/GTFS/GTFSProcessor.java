@@ -1,7 +1,5 @@
 package com.company.meanfreepathllc.GTFS;
 
-import com.sun.javaws.exceptions.InvalidArgumentException;
-
 import java.io.*;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -108,7 +106,7 @@ public class GTFSProcessor {
                     colIdx++;
                 }
                 dataObject.postProcess(dataset);
-            } catch (InstantiationException | IllegalAccessException | InvalidArgumentException e) {
+            } catch (InstantiationException | IllegalAccessException | IllegalArgumentException e) {
                 e.printStackTrace();
             }
         }
