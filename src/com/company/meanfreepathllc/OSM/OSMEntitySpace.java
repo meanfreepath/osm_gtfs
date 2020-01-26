@@ -1,6 +1,5 @@
 package com.company.meanfreepathllc.OSM;
 
-import com.sun.javaws.exceptions.InvalidArgumentException;
 import org.xml.sax.Attributes;
 import org.xml.sax.SAXException;
 import org.xml.sax.helpers.DefaultHandler;
@@ -578,17 +577,16 @@ public class OSMEntitySpace {
      * @param originalWay the way to split
      * @param splitNodes the node(s) to split it at
      * @return the split ways
-     * @throws InvalidArgumentException
+     * @throws IllegalArgumentException
      */
-    public OSMWay[] splitWay(final OSMWay originalWay, final OSMNode[] splitNodes) throws InvalidArgumentException {
+    public OSMWay[] splitWay(final OSMWay originalWay, final OSMNode[] splitNodes) throws IllegalArgumentException {
         //basic checks
         final List<OSMNode> curNodes = originalWay.getNodes();
         List<NodeIndexer> actualSplitNodes = new ArrayList<>(splitNodes.length);
         for(final OSMNode splitNode : splitNodes) {
             final int nodeIndex = curNodes.indexOf(splitNode);
             if (nodeIndex < 0) {
-                final String errMsg[] = {"splitNode " + splitNode.osm_id + " is not a member of the originalWay \"" + originalWay.getTag("name") + "\" (" + originalWay.osm_id + ")"};
-                throw new InvalidArgumentException(errMsg);
+                throw new IllegalArgumentException("splitNode " + splitNode.osm_id + " is not a member of the originalWay \"" + originalWay.getTag("name") + "\" (" + originalWay.osm_id + ")");
             }
             //no need to split at first/last nodes
             if (splitNode == originalWay.getFirstNode() || splitNode == originalWay.getLastNode()) {

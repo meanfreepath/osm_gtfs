@@ -1,7 +1,5 @@
 package com.company.meanfreepathllc.OSM;
 
-import com.sun.javaws.exceptions.InvalidArgumentException;
-
 import java.text.CharacterIterator;
 import java.text.StringCharacterIterator;
 import java.util.HashMap;
@@ -12,10 +10,11 @@ import java.util.Map;
  */
 public abstract class OSMEntity {
     public final static String KEY_LATITUDE = "lat", KEY_LONGITUDE = "lon", KEY_OSMID = "osm_id", KEY_FROM = "from", KEY_VIA = "via", KEY_TO = "to", KEY_OPERATOR = "operator", KEY_ROUTE = "route", KEY_ROUTE_MASTER = "route_master", KEY_NAME = "name", KEY_REF = "ref", KEY_LOCAL_REF = "local_ref", KEY_DESCRIPTION = "description", KEY_WEBSITE = "website", KEY_TYPE = "type", KEY_COLOUR = "colour", KEY_AMENITY = "amenity", KEY_WHEELCHAIR = "wheelchair", KEY_SOURCE = "source";
-    public final static String TAG_ROUTE = "route", TAG_ROUTE_MASTER = "route_master", TAG_BUS = "bus", TAG_LIGHT_RAIL = "light_rail", TAG_TRAM = "tram", TAG_SUBWAY = "subway", TAG_TRAIN = "train", TAG_FERRY = "ferry", TAG_AERIALWAY = "aerialway", TAG_YES = "yes", TAG_NO = "no";
+    public final static String TAG_ROUTE = "route", TAG_ROUTE_MASTER = "route_master", TAG_BUS = "bus", TAG_LIGHT_RAIL = "light_rail", TAG_TRAM = "tram", TAG_SUBWAY = "subway", TAG_MONORAIL = "monorail", TAG_TRAIN = "train", TAG_FERRY = "ferry", TAG_AERIALWAY = "aerialway", TAG_YES = "yes", TAG_NO = "no";
+    public final static String TAG_LANE = "lane", TAG_OPPOSITE_LANE = "opposite_lane";
     public final static String MEMBERSHIP_DEFAULT = "", MEMBERSHIP_STOP = "stop", MEMBERSHIP_PLATFORM = "platform";
 
-    public final static String KEY_HIGHWAY = "highway", KEY_RAILWAY = "railway", KEY_SUBWAY = "subway", KEY_PUBLIC_TRANSPORT = "public_transport", KEY_PUBLIC_TRANSPORT_VERSION = "public_transport:version", KEY_BUS = "bus", KEY_TRAIN = "train", KEY_FERRY = "ferry", KEY_TRAM = "tram", KEY_AERIALWAY = "aerialway", KEY_FUNICULAR = "funicular";
+    public final static String KEY_AREA = "area", KEY_HIGHWAY = "highway", KEY_RAILWAY = "railway", KEY_SUBWAY = "subway", KEY_MONORAIL = "monorail", KEY_PUBLIC_TRANSPORT = "public_transport", KEY_PUBLIC_TRANSPORT_VERSION = "public_transport:version", KEY_BUS = "bus", KEY_BUSWAY = "busway", KEY_TRAIN = "train", KEY_FERRY = "ferry", KEY_TRAM = "tram", KEY_AERIALWAY = "aerialway", KEY_FUNICULAR = "funicular";
     public final static String TAG_LEGACY_BUS_STOP = "bus_stop", TAG_PLATFORM = "platform", TAG_STOP_POSITION = "stop_position", TAG_LEGACY_FERRY_TERMINAL = "ferry_terminal";
 
     protected final static String
@@ -75,7 +74,7 @@ public abstract class OSMEntity {
         }
         complete = entityToCopy.complete;
         action = entityToCopy.action;
-        boundingBox = entityToCopy.boundingBox;
+        boundingBox = entityToCopy.boundingBox != null ? entityToCopy.boundingBox.clone() : null;
         if(entityToCopy.tags != null) {
             tags = new HashMap<>(entityToCopy.tags);
         }
@@ -88,7 +87,7 @@ public abstract class OSMEntity {
         }
         complete = completeEntity.complete;
         action = completeEntity.action;
-        boundingBox = completeEntity.boundingBox;
+        boundingBox = completeEntity.boundingBox != null ? completeEntity.boundingBox.clone() : null;
         if(completeEntity.tags != null) {
             tags = new HashMap<>(completeEntity.tags);
         }
@@ -132,9 +131,9 @@ public abstract class OSMEntity {
      * Sets the given tag on this entity, only if it doesn't already exist
      * @param name
      * @param value
-     * @throws InvalidArgumentException
+     * @throws IllegalArgumentException
      */
-    public void addTag(final String name, final String value) throws InvalidArgumentException {
+    public void addTag(final String name, final String value) throws IllegalArgumentException {
         if(!complete) { //can't set a tag on an incomplete entity
             return;
         }
@@ -143,8 +142,7 @@ public abstract class OSMEntity {
         }
 
         if(tags.containsKey(name)) {
-            String[] msg = {"Tag \"" + name + "\" already set!"};
-            throw new InvalidArgumentException(msg);
+            throw new IllegalArgumentException("Tag \"" + name + "\" already set!");
         }
         tags.put(name, value.trim());
         markAsModified();
@@ -164,11 +162,23 @@ public abstract class OSMEntity {
             tags = new HashMap<>();
         }
         if(value != null) {
-            tags.put(name, value.trim());
+            final String oldValue = tags.get(name), newValue = value.trim();
+            if(oldValue == null || !oldValue.equals(newValue)) { //update the tag if it's different
+                tags.put(name, newValue);
+                markAsModified();
+            }
         } else {
             removeTag(name);
         }
-        markAsModified();
+    }
+    /**
+     * Sets the multiple tags on this entity, replacing the previous value (if present)
+     * @param tags The key/values pairs of the tags to assign
+     */
+    public void setTags(final Map<String, String> tags) {
+        for(final Map.Entry<String, String> keyTag : tags.entrySet()) {
+            setTag(keyTag.getKey(), keyTag.getValue());
+        }
     }
     public boolean removeTag(final String name) {
         if(!complete) { //can't set a tag on an incomplete entity
@@ -203,15 +213,25 @@ public abstract class OSMEntity {
             case keepTags:
                 break;
             case replaceTags:
-                tags = new HashMap<>(otherEntity.tags);
+                if(tags.size() > 0) {
+                    tags.clear();
+                    if(otherEntity.tags.size() == 0) { //handle case where other entity has no tags
+                        markAsModified();
+                    }
+                }
+                for(Map.Entry<String, String> tag : otherEntity.tags.entrySet()) {
+                    setTag(tag.getKey(), tag.getValue());
+                }
                 break;
             case copyTags:
-                tags.putAll(otherEntity.tags);
+                for(Map.Entry<String, String> tag : otherEntity.tags.entrySet()) {
+                    setTag(tag.getKey(), tag.getValue());
+                }
                 break;
             case copyNonexistentTags:
                 for(Map.Entry<String, String> tag : otherEntity.tags.entrySet()) {
                     if(!tags.containsKey(tag.getKey())) {
-                        tags.put(tag.getKey(), tag.getValue());
+                        setTag(tag.getKey(), tag.getValue());
                     }
                 }
                 break;
@@ -220,11 +240,12 @@ public abstract class OSMEntity {
                 for(Map.Entry<String, String> tag : otherEntity.tags.entrySet()) {
                     if(tags.containsKey(tag.getKey()) && !tags.get(tag.getKey()).equals(tag.getValue())) {
                         conflictingTags.put(tag.getKey(), tag.getValue());
+                    } else {
+                        setTag(tag.getKey(), tag.getValue());
                     }
                 }
                 break;
         }
-        markAsModified();
 
         return conflictingTags != null && conflictingTags.size() > 0 ? conflictingTags : null;
     }
