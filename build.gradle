@@ -1,0 +1,29 @@
+plugins {
+    id 'java'
+    id 'application'
+}
+
+//create a single Jar with all dependencies
+jar {
+    archiveVersion = '1.0'
+    archiveBaseName = project.name
+    manifest {
+        attributes 'Implementation-Title': 'GTFSConverter',
+                'Implementation-Version': archiveVersion,
+                'Main-Class': 'GTFSConverter.Main'
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation('org.json:json:20231013')
+    implementation('org.jetbrains:annotations:22.0.0')
+}
+
+application {
+    mainClass.set('GTFSConverter.Main')
+}
+

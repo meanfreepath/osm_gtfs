@@ -1,3 +1,10 @@
 /out
+/output
+/boxes
+/cache
+/build
+.gradle
 .idea
 .DS_Store
+*.osm
+config.txt
