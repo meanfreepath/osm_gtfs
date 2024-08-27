@@ -18,13 +18,12 @@ public class Main {
     public static void main(String[] args) throws IllegalArgumentException {
 
         List<String> argList = new ArrayList<>(args.length);
+        if(args.length <= 1) {
+            System.err.println("Usage: java -jar GTFSConverter.jar -a " + Arrays.asList(ProcessingAction.values()) + " -f [path to GTFS directory]");
+            System.exit(1);
+        }
+
         Collections.addAll(argList, args);
-        argList.add("-a");
-        argList.add("compare");
-        //argList.add("process");
-        //argList.add("-n");
-        argList.add("-f");
-        argList.add("/Users/nick/Downloads/GTFS_OSM/google_transit_2016/,/Users/nick/Downloads/GTFS_OSM/google_transit_2017_03/");
 
         ProcessingAction processingAction = null;
         List<String> basePaths = null;
@@ -38,28 +37,29 @@ public class Main {
                     break;
                 case "-a":
                     String action = argIterator.next();
-                    processingAction = ProcessingAction.valueOf(action);
+                    try {
+                        processingAction = ProcessingAction.valueOf(action);
+                    } catch (IllegalArgumentException err) {
+                        System.err.println("ERROR: Invalid action - must be one of " + Arrays.asList(ProcessingAction.values()));
+                        System.exit(1);
+                    }
+                    break;
+                case "-h":
+                    System.out.println("Usage: java -jar GTFSConverter.jar -a [action] -f [path to GTFS directory]");
+                    System.exit(0);
                     break;
             }
         }
         if(processingAction == null) {
-            System.out.println("ERROR: Need to specify an action");
+            System.err.println("ERROR: Need to specify an action");
             System.exit(1);
         }
         if(basePaths == null) {
-            System.out.println("ERROR: Need at least 1 path to process");
+            System.err.println("ERROR: Need at least 1 path to process");
             System.exit(1);
         }
 
         List<GTFSDataset> datasets = new ArrayList<>(basePaths.size());
-
-        //GTFSProcessor.setBasePath("/Users/nick/Downloads/GTFS_OSM/3_gtfs/");
-        //GTFSProcessor.setBasePath("/Users/nick/Downloads/GTFS_OSM/google_transit_2016/");
-        //GTFSProcessor.setBasePath("/Users/nick/Downloads/GTFS_OSM/google_transit_2017_03/");
-        //GTFSProcessor.setBasePath("/Users/nick/Downloads/GTFS_OSM/trimet_gtfs/");
-        //GTFSProcessor.setBasePath("/Users/nick/Downloads/GTFS_OSM/metro-los-angeles_20160110_0950/");
-        //GTFSProcessor.setBasePath("/Users/nick/Downloads/GTFS_OSM/vancouver_gtfs/");
-        //GTFSProcessor.setBasePath("/Users/nick/Downloads/GTFS_OSM/gtfs_puget_sound_consolidated/");
 
         final String datasetName = "KCGIS";
         final String datasetSource = "King County GIS";
